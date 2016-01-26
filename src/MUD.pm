@@ -384,7 +384,7 @@ sub line($$) {
     }
   }
   if (!$lpl) {
-    clog($lp);
+    #clog($lp);
     $lpl=1;
   }
   $P::logline=$cline if $Conf::logsub && defined($P::logline);
@@ -413,7 +413,7 @@ sub prompt($$) {
     CL::toutput(0,$lp);
   }
   if (!$lpl) {
-    clog($lp);
+    #clog($lp);
   }
   $lp=$prompt;
   $lpd=$lpl=0;
@@ -422,11 +422,7 @@ sub prompt($$) {
 }
 
 sub lognl() {
-  if (LE::gecho) {
-    clog($lp . CL::parse_colors(LE::input));
-  } else {
-    clog($lp);
-  }
+  
 }
 
 my $sent=0;
@@ -438,17 +434,16 @@ sub repr(;$) { if (@_) { $repr=shift; } $repr }
 
 sub sendl($) {
   if ($sock && $sock_conn) {
+    $P::logline = $_[0];
     my $text=::call_hook('send',$_[0]);
     $sent=1;
     $sock->writeln($text);
     if ($repr) {
       LE::snewline($text);
       $lpd=1;
-      if (LE::gecho) {
-        clog($lp . CL::parse_colors(LE::input));
-      } else {
-	clog($lp);
-      }
+    }
+    if (LE::gecho) {
+      clog($P::logline);
     }
   } else {
     CL::warn("Can't send text: not connected to a server.");
