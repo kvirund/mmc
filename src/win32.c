@@ -1039,7 +1039,7 @@ LRESULT CALLBACK  ColorsDlgProc(HWND hWnd,UINT uMsg,WPARAM wParam,
 
   switch (uMsg) {
     case WM_INITDIALOG:
-      SetWindowLong(hWnd,GWL_USERDATA,lParam);
+      SetWindowLongPtr(hWnd,GWLP_USERDATA,lParam);
       if ((hItem=GetDlgItem(hWnd,IDC_COLORSLIST))) {
 	char	  buffer[128];
 	int	  i;
@@ -1068,7 +1068,7 @@ LRESULT CALLBACK  ColorsDlgProc(HWND hWnd,UINT uMsg,WPARAM wParam,
       }
       break;
     case WM_COMMAND:
-      cr=(CDLGDATA*)GetWindowLong(hWnd,GWL_USERDATA);
+      cr=(CDLGDATA*)GetWindowLongPtr(hWnd,GWLP_USERDATA);
       switch (LOWORD(wParam)) {
 	case IDOK:
 	  EndDialog(hWnd,1);
@@ -1129,7 +1129,7 @@ LRESULT CALLBACK  ColorsDlgProc(HWND hWnd,UINT uMsg,WPARAM wParam,
 	LPDRAWITEMSTRUCT  id=(LPDRAWITEMSTRUCT)lParam;
 	HBRUSH		  hbr;
     
-	cr=(CDLGDATA*)GetWindowLong(hWnd,GWL_USERDATA);
+	cr=(CDLGDATA*)GetWindowLongPtr(hWnd,GWLP_USERDATA);
 	hbr=CreateSolidBrush(cr->cmap[cr->cur]);
 	FillRect(id->hDC,&id->rcItem,hbr);
 	DeleteObject(hbr);
@@ -1753,7 +1753,8 @@ void	out_clearscr(void) { /* clear entire screen */
     unsigned char   fg,bg;
     int		    x,y;
 
-    RemoveSel(curscr);
+	if (curscr)
+		RemoveSel(curscr);
     LOCKSCR();
     if (!curscr)
 	goto out;
