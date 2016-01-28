@@ -434,7 +434,7 @@ sub repr(;$) { if (@_) { $repr=shift; } $repr }
 
 sub sendl($) {
   if ($sock && $sock_conn) {
-    $P::logline = $_[0];
+    $P::logline = &CL::parse_colors($_[0]);
     my $text=::call_hook('send',$_[0]);
     $sent=1;
     $sock->writeln($text);
