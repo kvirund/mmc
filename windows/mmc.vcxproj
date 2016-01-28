@@ -76,76 +76,76 @@
       <UndefinePreprocessorDefinitions>DEBUG</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>perl516.lib;zlib.lib;ws2_32.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;advapi32.lib;comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Perl64\lib\CORE;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>perl516.lib;zlibd.lib;ws2_32.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;advapi32.lib;comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Perl64\lib\CORE;packages\zlib.v140.windesktop.msvcstl.dyn.rt-dyn.1.2.8.8\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <PreBuildEvent>
-      <Command>cd src
-prebuild.cmd</Command>
+      <Command>cd ../src
+../windows/prebuild.cmd</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <Text Include="readme.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\acconfig.h" />
-    <ClInclude Include="src\Char.h" />
-    <ClInclude Include="src\cmalloc.h" />
-    <ClInclude Include="src\misc.h" />
-    <ClInclude Include="src\resource.h" />
-    <ClInclude Include="src\socket.h" />
-    <ClInclude Include="src\timeout.h" />
-    <ClInclude Include="src\window.h" />
-    <ClInclude Include="src\window_priv.h" />
+    <ClInclude Include="..\src\acconfig.h" />
+    <ClInclude Include="..\src\Char.h" />
+    <ClInclude Include="..\src\cmalloc.h" />
+    <ClInclude Include="..\src\misc.h" />
+    <ClInclude Include="..\src\resource.h" />
+    <ClInclude Include="..\src\socket.h" />
+    <ClInclude Include="..\src\timeout.h" />
+    <ClInclude Include="..\src\window.h" />
+    <ClInclude Include="..\src\window_priv.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="src\aclocal.m4" />
-    <None Include="src\CL.pm" />
-    <None Include="src\CL.xs" />
-    <None Include="src\CMD.pm" />
-    <None Include="src\Conf.pm" />
-    <None Include="src\config_h.win32" />
-    <None Include="src\DCommand.pm" />
-    <None Include="src\DLWin32.pm" />
-    <None Include="src\Ex.pm" />
-    <None Include="src\install-sh" />
-    <None Include="src\Keymap.pm" />
-    <None Include="src\LE.pm" />
-    <None Include="src\Main.pm" />
-    <None Include="src\Makefile.am" />
-    <None Include="src\Makefile.in" />
-    <None Include="src\Makefile.win32" />
-    <None Include="src\missing" />
-    <None Include="src\mkinstalldirs" />
-    <None Include="src\moddep.pl" />
-    <None Include="src\MUD.pm" />
-    <None Include="src\packmod.pl" />
-    <None Include="src\Parser.pm" />
-    <None Include="src\README" />
-    <None Include="src\RStream.pm" />
-    <None Include="src\stamp-h.in" />
-    <None Include="src\Status.pm" />
-    <None Include="src\Ticker.pm" />
-    <None Include="src\UAPI.pm" />
+    <None Include="..\src\aclocal.m4" />
+    <None Include="..\src\CL.pm" />
+    <None Include="..\src\CL.xs" />
+    <None Include="..\src\CMD.pm" />
+    <None Include="..\src\Conf.pm" />
+    <None Include="..\src\config_h.win32" />
+    <None Include="..\src\DCommand.pm" />
+    <None Include="..\src\DLWin32.pm" />
+    <None Include="..\src\Ex.pm" />
+    <None Include="..\src\install-sh" />
+    <None Include="..\src\Keymap.pm" />
+    <None Include="..\src\LE.pm" />
+    <None Include="..\src\Main.pm" />
+    <None Include="..\src\Makefile.am" />
+    <None Include="..\src\Makefile.in" />
+    <None Include="..\src\Makefile.win32" />
+    <None Include="..\src\missing" />
+    <None Include="..\src\mkinstalldirs" />
+    <None Include="..\src\moddep.pl" />
+    <None Include="..\src\MUD.pm" />
+    <None Include="..\src\packmod.pl" />
+    <None Include="..\src\Parser.pm" />
+    <None Include="..\src\README" />
+    <None Include="..\src\RStream.pm" />
+    <None Include="..\src\stamp-h.in" />
+    <None Include="..\src\Status.pm" />
+    <None Include="..\src\Ticker.pm" />
+    <None Include="..\src\UAPI.pm" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\CL.c" />
-    <ClCompile Include="src\cmalloc.c" />
-    <ClCompile Include="src\main.c" />
-    <ClCompile Include="src\misc.c" />
-    <ClCompile Include="src\perlmodules.c" />
-    <ClCompile Include="src\socket.c" />
-    <ClCompile Include="src\timeout.c" />
-    <ClCompile Include="src\version.c" />
-    <ClCompile Include="src\win32.c" />
-    <ClCompile Include="src\window.c" />
-    <ClCompile Include="src\xsinit.c" />
+    <ClCompile Include="..\src\CL.c" />
+    <ClCompile Include="..\src\cmalloc.c" />
+    <ClCompile Include="..\src\main.c" />
+    <ClCompile Include="..\src\misc.c" />
+    <ClCompile Include="..\src\perlmodules.c" />
+    <ClCompile Include="..\src\socket.c" />
+    <ClCompile Include="..\src\timeout.c" />
+    <ClCompile Include="..\src\version.c" />
+    <ClCompile Include="..\src\win32.c" />
+    <ClCompile Include="..\src\window.c" />
+    <ClCompile Include="..\src\xsinit.c" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="src\mmc.rc" />
+    <ResourceCompile Include="..\src\mmc.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -6,6 +6,8 @@ stamp-h1
 *.o
 CL.c
 b2c
+b2c.exe
+zlibd.dll
 perlmodules.c
 stamp*
 xsinit.c
