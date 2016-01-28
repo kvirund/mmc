@@ -44,11 +44,14 @@ enum {
 };
 
 static String **g_status; /* status line contents */
+static String **g_rpanel; /* right panel contents */
 static String *g_input;	  /* input line contents */
 static int    g_ix;	  /* cursor position in input line */
 
-static int    width;	  /* screen width */
-static int    height;	  /* screen height */
+static int    width = 100;	  /* screen width */
+static int    height = 100;	  /* screen height */
+static int    rpanel_width = 20; /* right panel width */
+static int    rpanel_max_height = 400; /* right panel max height */
 static int    sbw_height; /* split scrollback height */
 static int    status_mode=2;/* status line place/visibility */
 static int    status_height=1;/* number of status lines */
@@ -67,6 +70,7 @@ static int    slowscroll;   /* flush output after each line */
 /* some local functions */
 static void   redraw(int w,int clear,int all);
 static void   update_sbstatus(struct Window *w,int how);
+static void   rpaneldraw();
 
 /* callback */
 static WindowCB	wincb;
@@ -114,9 +118,9 @@ static String	  *s_grow(String *s,int newlen,int color) {
 
 void  window_resize(int neww,int newh) {
   int	i,j;
-
-  height=newh;
-  sbw_height=(height-status_height-1)*2/3;
+  
+  height = newh;
+  sbw_height = (height - status_height - 1) * 2 / 3;
   switch (status_mode) {
     case 1: /* ircII style status */
       inputy=height-1;
@@ -132,7 +136,7 @@ void  window_resize(int neww,int newh) {
       break;
   }
   if (width!=neww) {
-    width=neww;
+    width=neww-rpanel_width;
     for (i=0;i<10;++i) {
       if (!(windows[i].flags&WF_VALID))
 	continue;
@@ -178,7 +182,10 @@ const char *window_init(void) {
   g_input=NULL;
   /* get sizes */
   out_update_winsize();
-  /* setup stdio buffering */
+  /* create right panel lines */
+  g_rpanel = chk_malloc(rpanel_max_height*sizeof(String*));
+  for (i = 0; i<rpanel_max_height; ++i)
+	  g_rpanel[i] = s_new(rpanel_width, 0, 7);
   return NULL;
 }
 
@@ -189,6 +196,9 @@ void	window_done(void) {
     return;
   /* flush everything */
   window_flush();
+  for (i = 0; i<rpanel_max_height; ++i)
+	  free(g_rpanel[i]);
+  free(g_rpanel);
   /* close all windows */
   cur_win=-1;
   for (i=0;i<10;++i)
@@ -302,7 +312,7 @@ void	window_set_status_mode(int mode,int sh) {
       free(g_status);
     }
     /* redraw screen */
-    window_resize(width,height);
+    window_resize(width+rpanel_width,height);
   }
 }
 
@@ -418,6 +428,7 @@ void	window_flush(void) {
     windows[cur_win].buflines=0;
     if (windows[cur_win].flags&WF_SBW)
       update_sbstatus(windows+cur_win,0);
+	rpaneldraw();
   }
   out_movecursor(g_ix,inputy);
   out_flush();
@@ -431,6 +442,19 @@ void	window_output_cstatus(int x,int y,const char *ctext,int len) {
   out_movecursor(x,statusy+y);
   out_cwrite(ctext,len,status_bg);
   out_setcolor(-1,text_bg);
+}
+
+void	window_output_crpanel(int x, int y, const char *ctext, int len) {
+	ICHECK();
+	if (x < 0 || x >= rpanel_width)
+		return;
+	if (x + len > rpanel_width)
+		len = rpanel_width - x;
+	if (y < 0 || y >= rpanel_max_height || y >= height)
+		return;
+	memcpy(g_rpanel[y]->str + 2 * x, ctext, 2 * len);
+	out_movecursor(width + x, y);
+	out_cwrite(ctext, len, text_bg);
 }
 
 void	window_output_status(int x,int y,const char *text,int len,int color) {
@@ -590,6 +614,16 @@ static void   sbdraw(struct Window *w) {
   }
 }
 
+static void rpaneldraw()
+{
+	int i;
+
+	for (i = 0; i<height && i<rpanel_max_height; ++i) {
+		out_movecursor(width, i);
+		out_cwrite(g_rpanel[i]->str, g_rpanel[i]->len, text_bg);
+	}
+}
+
 static void   redraw(int w,int clear,int all) {
   int	      i,bot;
   const char  *text;
@@ -623,6 +657,8 @@ static void   redraw(int w,int clear,int all) {
 	out_clearline();
     }
   }
+  rpaneldraw();
+  out_setcolor(-1, text_bg);
   if (all) {
     /* draw status line */
     if (status_mode) {

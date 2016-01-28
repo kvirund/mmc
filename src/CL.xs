@@ -384,6 +384,18 @@ twritenc(x,string,c)
 	window_output_input(x,sbuf,len,c);
 
 void
+twcrpanel(x,y,string)
+    int x
+    int y
+    SV *string
+    PREINIT:
+	STRLEN	len;
+	char	*sbuf;
+    CODE:
+	sbuf = SvPV(string,len);
+	window_output_crpanel(x,y,sbuf,len>>1);
+
+void
 twstatus(x,y,string,c)
     int x
     int y
