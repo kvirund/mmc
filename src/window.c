@@ -143,7 +143,7 @@ void  window_resize(int neww,int newh) {
       /* recalculate vlines */
       windows[i].vlines=0;
       for (j=0;j<windows[i].lines;++j)
-	windows[i].vlines+=(windows[i].text[(j+windows[i].ptr)%windows[i].max]->len-1)/width+1;
+        windows[i].vlines+=(windows[i].text[(j+windows[i].ptr)%windows[i].max]->len-1)/width+1;
       /* disable scrollback after width change */
       windows[i].flags&=~WF_SBW;
     }
@@ -294,26 +294,47 @@ void	window_set_status_mode(int mode,int sh) {
     /* reallocate status lines */
     if (status_mode) {
       if (oldh>0) { /* reallocate */
-	if (oldh!=status_height) {
-	  for (i=status_height;i<oldh;++i)
-	    free(g_status[i]);
-	  g_status=chk_realloc(g_status,status_height*sizeof(String*));
-	  for (i=oldh;i<status_height;++i)
-	    g_status[i]=s_new(width,0,7);
-	}
+        if (oldh!=status_height) {
+          for (i=status_height;i<oldh;++i)
+            free(g_status[i]);
+          g_status=chk_realloc(g_status,status_height*sizeof(String*));
+          for (i=oldh;i<status_height;++i)
+            g_status[i]=s_new(width,0,7);
+        }
       } else { /* create new */
-	g_status=chk_malloc(status_height*sizeof(String*));
-	for (i=0;i<status_height;++i)
-	  g_status[i]=s_new(width,0,7);
+        g_status=chk_malloc(status_height*sizeof(String*));
+        for (i=0;i<status_height;++i)
+          g_status[i]=s_new(width,0,7);
       }
     } else { /* delete all */
       for (i=0;i<oldh;++i)
-	free(g_status[i]);
+        free(g_status[i]);
       free(g_status);
     }
     /* redraw screen */
     window_resize(width+rpanel_width,height);
   }
+}
+
+void window_set_rpanel_width(int rpw)
+{
+  int i;
+
+  if (0 > rpw || rpw >= width + rpanel_width)
+  {
+    return;
+  }
+
+  width = width - (rpw - rpanel_width);
+  rpanel_width = rpw;
+
+  for (i = 0; i < height; ++i)
+  {
+    g_rpanel[i] = s_grow(g_rpanel[i], rpanel_width, 7);
+  }
+
+  /* redraw screen */
+  window_resize(width+rpanel_width,height);
 }
 
 static char   *addline(struct Window *w,int len,int flag) {
@@ -762,3 +783,5 @@ void	window_redraw(void) {
   if (cur_win>=0 && (windows[cur_win].flags&WF_VALID))
     redraw(cur_win,1,1);
 }
+
+/* vim: set ts=2 sw=2 tw=0 et syntax=c :*/

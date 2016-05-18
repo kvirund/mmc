@@ -396,6 +396,12 @@ twcrpanel(x,y,string)
 	window_output_crpanel(x,y,sbuf,len>>1);
 
 void
+twcrpanel_set_width(new_width)
+    int new_width
+    CODE:
+    window_set_rpanel_width(new_width);
+
+void
 twstatus(x,y,string,c)
     int x
     int y
