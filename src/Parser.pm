@@ -180,3 +180,5 @@ sub format_qstring($) { # substs
 }
 
 1;
+
+# vim: set ts=8 sw=2 tw=0 et syntax=perl :

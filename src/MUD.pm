@@ -315,6 +315,32 @@ sub bell($) {
   ::sndevent("MudBeep");
 }
 
+sub option_request($$)
+{
+  my MUD $self = shift;
+  my $option = shift;
+
+  if (69 == $option) #MSDP
+  {
+    my $IAC = "\xff";
+    my $DO = "\xfd";
+    my $MSDP = "\x45";
+    CL::msg("Enabling MSDP.");
+    MUD::sendr("$IAC$DO$MSDP");
+  }
+  else
+  {
+    CL::msg(sprintf "Requested option 0x%x", $option);
+  }
+}
+
+sub subnegotiation($$)
+{
+    my MUD $self = shift;
+    my $subnegotiation = shift;
+    CL::msg(sprintf("Subnegotiation %s (%d)", join(", ", map { unpack "H*", chr } map { ord } split //, $subnegotiation), length $subnegotiation));
+}
+
 my $lle=0;
 my $lp;
 my $lpd=1;
@@ -450,6 +476,15 @@ sub sendl($) {
   }
 }
 
+sub sendr($) {
+  my $text = shift;
+  if ($sock && $sock_conn) {
+    $sock->write($text, 1);
+  } else {
+    CL::warn("Can't send text: not connected to a server.");
+  }
+}
+
 package MUD_helper;
 
 use Ex;
@@ -473,3 +508,5 @@ sub STORE {
 tie $:,'MUD_helper';
 
 1;
+
+# vim: set ts=2 sw=2 tw=0 et syntax=perl :

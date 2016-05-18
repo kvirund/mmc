@@ -784,4 +784,4 @@ void	window_redraw(void) {
     redraw(cur_win,1,1);
 }
 
-/* vim: set ts=2 sw=2 tw=0 et syntax=c :*/
+/* vim: set ts=8 sw=2 tw=0 et syntax=c :*/

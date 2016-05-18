@@ -94,6 +94,10 @@ sub sendl($) {
   MUD::sendl($_[0]);
 }
 
+sub sendr($) {
+  MUD::sendr($_[0]);
+}
+
 sub timeout(&$;$) {
   my $code=shift;
   my $delay=shift;

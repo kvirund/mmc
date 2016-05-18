@@ -75,10 +75,12 @@ sub echo($$) { }
 sub line($$) { }
 sub prompt($$) { }
 sub bell($) { }
+sub option_requested($$) { }
+sub subnegitiation($$) { }
 
 sub write {
     my CL::Socket $self=$_[0];
-    CL::swrite($self->{_fd},$_[1]);
+    CL::swrite($self->{_fd},$_[1],$_[2]);
 }
 
 sub writeln {
