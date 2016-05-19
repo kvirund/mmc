@@ -1,0 +1,951 @@
+# vim: ts=4 syn=perl:
+# $Id: sample.mmcrc,v 1.2 2000/05/16 12:00:22 mike Exp $
+
+my $mmc = $ENV{MMC} || $ENV{MMC} || $ENV{HOME} || '.';
+MUD::logopen("$mmc/mage.log");	# включаем лог в файл $MMC/mage.log
+CMD::cmd_ticksize(61);
+my $player = "waveplay";
+my $wave_path = "/path/to/wav";
+
+### Таблица цветов
+#	Цвет			Обозначение
+#	===========================
+#	Черный			\003A
+#	Красный			\003B
+#	Зеленый			\003C
+#	Коричневый		\003D
+#	Синий			\003E
+#	Малиновый		\003F
+#	Голубой			\003G
+#	Светло-серый
+#	  (основной)	\003H
+#	Серый			\003I
+#	Ярко-красный	\003J
+#	Салатовый		\003K
+#	Желтый			\003L
+#	Светло-синий	\003M
+#	Розовый			\003N
+#	Светло-голубой	\003O
+#	Белый			\003P
+# У вас цвета могут быть и иными
+
+#	Переменные, определенные как $U::var, будут потом доступны из клиента
+#	как $var. Определять их не обязательно (можно сразу использовать), но
+#	если сразу определить имена, то потом сложнее запутаться
+$U::recall_container = "pouch";
+$U::food_container = "chest";
+$U::my_name = undef;
+$U::follow = undef;
+$U::tank = undef;
+$U::target = undef;
+$U::fight = 0;
+$U::potion = "heal.potion";
+$U::charmie = "all";
+$U::tracker = undef;
+$U::autotrack = 0;
+$U::weapon = "staff.vari";
+$U::autostand = 0;
+$U::poor = undef;
+$U::F4_cmd = "break vial";
+$U::Target = '';
+nosave(qw(recall_container, food_container, my_name, follow, tank, target, fight, potion, charmie, tracker, autotrack, autostand, Target));
+
+### Добавляем переменные в строку состояния. Параметры: имя переменной,
+#	ширина поля в символах и, возможно, порядковый номер цвета, которым
+#	отображать текст.
+#	После добавления переменной в строку состояния ей надо присвоить
+#	новое значение.
+Status::new_sv($crap, 1);
+$crap = '';
+Status::new_sv($U::Target, 12, 3);
+Status::new_sv($Sloot, 7);
+Status::new_sv($Flags, 8, 9);
+Status::new_sv($Misc, 5, 11);
+
+### Внутренние переменные.
+my $loot = 1; # off, pile, all, greedy
+$Sloot = "pile";
+$Flags = ' 'x8;
+$Misc = " A";
+my $got_xp;
+my $who_lines = 0;
+my $user = 0;
+my ($group_lines, $group_members);
+my %NCO;
+my %char_list = (	# Друзья и враги
+'Morhold'	=> ['mage', 'FRIEND', 'Me'],
+'Morgion'	=> ['god', 'EVIL', 'I dont like him']
+);
+my %CLAN_COLOR = (	# Цвета для их отображения
+	GREEN		=> 'K',
+	FRIEND		=> 'M',
+	LIGHTBLUE	=> 'M',
+	RANDOM		=> 'L',
+	ENEMY		=> 'J',
+	EVIL		=> 'N',
+	MAGENTA		=> 'N',
+	LIGHTRED	=> 'J',
+	RED			=> 'J'
+);
+
+my %splist = (	# Известные заклинания
+	"abrazak"                               => "light",
+	"abrazakilla barh"                      => "lightning bolt",
+	"zahlhif gsgrul"                        => "color spray",
+	"zahlihuijar abrazak"                   => "continual light",
+	"zahliyjcandus zrzwunsohar"             => "conjure elemental",
+	"zahliyjguai"                           => "confusion",
+	"zahliz ay zahlre"                      => "cone of cold",
+	"zahlwwjiz xuhp iahjcandus"             => "commune with nature"
+);
+
+
+### Вспомогательные процедуры
+sub get_color($$) {
+# Параметры: строка с цветами в формате внутренних цветов mmc
+# и номер символа в ней.
+# Возвращаемое значение: цвет этого символа в диапазоне A..P
+	return chr(ord(substr($_[0], 2*$_[1]+1, 1))+ord('A'));
+}
+
+my %flags = (
+	P => 0,
+	T => 1,
+	B => 2,
+	C => 3,
+	S => 4,
+	H => 5,
+	D => 6,
+	Z => 7
+);
+
+sub Fset(*) {
+	substr($Flags, $flags{$_[0]}, 1) = $_[0] if defined $flags{$_[0]};
+}
+
+sub Fclear(*) {
+	substr($Flags, $flags{$_[0]}, 1) = ' ' if defined $flags{$_[0]};
+}
+
+sub Xp {
+	if ($_[0] < 10000) {
+		$_[0] . "X";
+	} elsif($_[0] < 10_000_000) {
+		"" . int($_[0] / 1000) . "k";
+	} else {
+		"" . int($_[0] / 1000000 ) . "M";
+	}
+}
+
+hook {
+# функции передается prompt, пришедший из mud'а. Изменяй, как хочешь.
+	my $prompt = shift;
+	if($prompt =~ /\[.*]/) {
+		${U::fight} = 1;
+	} else {
+		${U::fight} = 0;
+	}
+	$prompt =~ s/Exits://;
+	$prompt =~ s/Mem:/M:/;
+	$prompt =~ s/(\d+)X/&Xp($1)/ge;
+	if($who_lines && ($prompt =~ /\>/)) {
+		$who_lines = 0;
+		my $Total = "\003PTotal:";
+		foreach my $col (keys(%NCO)) {
+			$Total .= " \003$col($NCO{$col})";
+		}
+		echo($Total);
+		echo('');
+		undef %NCO;
+		disable("CHECK_WHO");
+	}
+	$prompt;
+} "prompt";
+
+# определим себе еще несколько команд
+# перед каждой командой надо ставить префикс CMD::cmd_
+sub CMD::cmd_play {
+# Проигрывает звуковой файл.
+	if (@_) {
+		fork || do {
+			open(STDERR, ">/dev/null");
+			open(STDOUT, ">/dev/null");
+			exec($player, "$wave_path/$_[0]");
+		}
+	} else {
+		msg("/play <file.wav>");
+	}
+}
+
+sub CMD::cmd_spell(@) {
+# дешифровка спеллов - просто поиск по базе
+	my $cspell = join(' ', @_);
+	my $spell = $splist{$cspell};
+	if ($spell) {
+		msg("$cspell = $spell");
+	} else {
+		msg("$cspell: NOT found");
+	}
+}
+
+sub CMD::cmd_loot {
+# Настройка автоматического обирания трупов
+# Параметры: off	- выключить
+#	pile			- вынимать деньги из трупов убитых мной врагов
+#	on = all		- вынимать все из трупов убитых мной врагов
+#	greedy			- вынимать деньги из всех трупов по дороге,
+#					  подбирать валяющиеся деньги
+	if (lc($_[0]) eq 'off') {
+		$loot = 0;
+		$Sloot = "off";
+	} elsif (lc($_[0]) eq 'pile') {
+		$loot = 1;
+		$Sloot = "pile";
+	} elsif (lc($_[0]) eq 'all' or lc($_[0]) eq 'on') {
+		$loot = 2;
+		$Sloot = "all";
+	} elsif (lc($_[0]) eq 'greedy') {
+		$loot = 3;
+		$Sloot = "greedy";
+	} else {
+		msg($Sloot);
+	}
+}
+
+sub CMD::cmd_user {
+# Есть много очень полезных действий, которые мог бы делать клиент.
+# Но автоматическое выполнение некоторых таких действий в ряде случаев
+# может стоить слишком дорого. Иногда их следует запретить.
+# [on|off]
+	if(!$_[0]) {
+		msg($user?"Automatic help is off":"Automatic help is on");
+	} elsif (lc($_[0]) eq 'on') {
+		$user = 1;
+		msg("Automatic help set to off");
+	} else {
+		$user = 0;
+		msg("Automatic help set to on");
+	}
+	$Misc = ' ' . ($user?"U":"A");
+}
+
+
+### Триггеры.
+# Триггеру передаются запрошенные совпадения ($1-$9) и пришедшая от
+# сервера строка, на которую этот триггер настроен. (На самом деле
+# триггеру передаются 2 строки: $_ - это строка без цветов, и $; - 
+# строка с цветами во внутреннем формате mmc.) Триггер МОЖЕТ изменять
+# эти строки, но:
+#	1) это не рекомендуется
+#	2) если триггер изменяет строки, он должен сам следить за соответствием
+#		строк $_ и $;
+# Кроме того, существует специальная переменная, $:. Из нее нельзя читать,
+# но ей можно присваивать, и если ей присвоить строку с цветами, то эта
+# строка попадет и в $;, а в $_ будет записана эта же строка без цветов.
+# В переменной $P::logline хранится строка, которая будет записана в лог.
+# Ее тоже можно менять, а если ей присвоить undef, то в лог не будет записано
+# ничего.
+# Общая идея назначения приоритетов триггерам такая:
+# Триггеры с приоритетом выше 2000 заканчивают отложенные события.
+# Назначение приоритетов выше 2000 должно производиться крайне осторожно.
+# Ни один триггер с приоритетом выше 1500 не должен изменять строку или
+# прерывать обработку.
+# Триггеры, не удовлетворяющие этому условию, но делающие особо важную
+# работу или настроенные на строки, точно никому больше не нужные, имеют
+# приоритет от 1000 до 1500.
+# Приоритет ниже 1000 имеют триггеры, удаляющие с экрана спам.
+# PS: Вы можете придумать свою систему приоритетов.
+
+# на случай, если afk. /set warn 1 - бипкнет 1 раз на любую
+# строку из муда. Если >1, то на каждую
+trig {
+	if ($U::warn) {
+		CMD::cmd_bell;
+		$U::warn = 0 if $U::warn == 1;
+	}
+} '.*', '2000fn:CORE';
+
+trig {
+# Триггер преобразует tell
+# Проверка на цвет позволяет отличать gecho от настоящих сообщений
+	if (get_color($;, 1) eq 'G') {
+		CMD::cmd_bell;
+		$: = "\003G\@$1: $2";
+	}
+} '^(\w+) tells you \'(.*)\'$', '1000n:COMM';
+
+trig {
+# Триггер преобразует gtell
+	if (get_color($;, 1) eq 'G') {
+		CMD::cmd_bell;
+		$: = "\003N#$1: $2";
+	}
+} '^(\w+) tells your group \'(.*)\'$', '1000n:COMM';
+
+trig {
+# Триггер преобразует say
+	$: = "\003D$_";
+} '^[A-Za-z ]+ says? \'.*\'$', '1000n:COMM';
+
+## Split
+# Все деньги с трупа делятся честно между членами группы
+trig {	# обираем труп
+	if ($loot == 0) {
+		sendl('exa corpse');
+	} elsif ($loot == 1) {	
+		sendl('get pile.coins corpse');
+		sendl('exa corpse');
+	} elsif ($loot >= 2) {
+		sendl('get all corpse') unless $user;
+	}
+} '^You receive [0-9]+ experience\\.$', '2000fn:LOOT';
+
+trig {
+	sendl('get pile.coins corpse') if $loot == 3;
+	sendl('exa corpse');
+} '^The corpse of (.*) is lying', '2000fn:LOOT';
+
+trig {
+	enable('SPLIT');
+} '^You get .* coins from the corpse', '2000fn-:GSPLIT';
+
+trig {
+	sendl("split $1");
+	disable('SPLIT');
+} '^There were (\d+) coins\\.$', "1500n-:SPLIT";
+
+## Построение группы
+trig {
+	enable('GSPLIT');
+	enable('GBUILD');
+	CMD::cmd_tabdelete(keys %CMD::complist) if %CMD::complist;
+	$group_members = $1+3;	# $1+1, если режим expert
+	$group_lines = 0;
+} '^Your group of ([0-9]+) members consists of:', '2000fn:CORE';
+
+trig {
+	$group_lines++;
+	if ($group_lines == 1) {	# Your group of
+		return;
+	} elsif ($group_lines == 2) {		# уберите, если режим expert
+		$: = $_ . "  Class";	#   Member   
+		return;
+	} elsif ($group_lines == 3) {
+		$: = $_ . "-------";	# ----------
+		return;
+	}
+	CMD::cmd_tabadd($1);
+	CMD::cmd_disable('GBUILD') if $group_lines == $group_members;
+	my ($class, $clan, $comment) = $char_list{$1}?@{$char_list{$1}}:();
+	$class = $class?lc($class):'UNKNOWN';
+	my $color = 'H';
+	if ($clan) {
+		$color = $CLAN_COLOR{$clan} if $CLAN_COLOR{$clan};
+	}
+	$: = CL::unparse_colors($;) . "	\003$color$class";
+} '\s*(\w*)', '1500n-:GBUILD';
+
+trig {
+	disable('GSPLIT');
+	foreach (keys %CMD::complist) {
+		echo $_;
+	}
+	CMD::cmd_tabdelete(keys %CMD::complist) if %CMD::complist;
+} '^You belong to no group\\.$|^You are not a member of a group\\.$', '2000fn:CORE';
+
+trig {
+	sendl("get recall $U::recall_container");
+	sendl("recite recall");
+	$: = "\003J$_";
+} '^[A-Za-z \',]+ has summoned you!$', "1000n-:SUMMON";
+
+trig {	# Как меня зовут?
+	$U::my_name = $1;
+} '^You are (\w+),? .*, a level', "2000fn:CORE";
+
+my($p,$ltime)=0;
+trig {
+	if (($1 ne $p) || ($ltime < time-30)) {
+		sendl("l $1") unless $user;
+		$p=$1;
+	}
+	$ltime = time;
+} '^(\w+) looks at you\\.$', "2000fn:LOOK";
+
+# Подсветка сильных ударов
+trig {
+	my $acolor = ($CMD::complist{$1} || $1 eq 'You')?"C":"N";
+	if ($3 eq 'YOU') {
+		$: = "\003$acolor$1\003L" . uc($2) . "\003K$3\003H$4";
+		CMD::cmd_bell if $2 ne " massacres ";
+	} else {
+		my $wcolor = $CMD::complist{$3}?"K":"P";
+		$: = "\003$acolor$1\003H" . uc($2) . "\003$wcolor$3\003H$4";
+	}
+} '^([^*]*)( annihilates? | massacres? | obliterates? )(.*)( with [^\']*)$', "500n:HIGHLIGHT";
+
+# Удаление слабых ударов
+trig {
+	my ($who, $how, $what, $targ, $mod1, $mod2) = ($1, $2, $3, $4, $5, $6);
+	next if (/misses/ and !/misses .* with/);
+	next if (($targ =~ tr/ / /) >3 and !$mod2);
+	$mod1 = '' if !defined $mod1;
+	$mod2 = '' if !defined $mod2;
+	$how = '' if !defined $how;
+	$mod1 .= $mod2;
+	my $acolor = ($CMD::complist{$who})?"C":"N";
+	if (lc($targ) eq 'you') {
+		my $mecolor = 'H';
+		$mecolor = 'L' if $mod1 and $mod2;
+		$: = "\003$acolor$who\003$mecolor$how$what\003K$targ\003H$mod1.";
+	} elsif ($CMD::complist{$targ}) {
+		$: = "\003$acolor$who\003H$how$what\003K$targ\003H$mod1." if !$U::fight or $mod2 or $main;
+	} else {
+		$: = "\003$acolor$who\003H$how$what\003P$targ\003H$mod1." if !$U::fight or ($mod1 and $mod2);
+	}
+} '^([^*]*?)( barely)?( misses | bruises | bites | hits | slashes | smites | claws | whips | pierces | crushes | cleaves | bludgeons | stabs | drains | stings )(.*?)( extremely| very| with.*)?( hard)?\\.$', "500n:HIGHLIGHT";
+
+# Мусор
+gag ('^[^*](.*) screams in pain as inky black tentacles constrict (him|her)\\.$', "500ng:GAG");
+gag ('^[^*](.*) seems unaffected by (.*) swarm of insects\\.$', "500ng:GAG");
+gag ('^[^*](.*) screams as a swarm of insects engulfs (him|her)\\.$', "500ng:GAG");
+gag ('^[^*](.*) is stunned momentarily, recovering quickly\\.$', "500ng:GAG");
+gag ('^[^*](.*)is (chilled|burned), as he swings .*\\.$', "500ng:GAG");
+
+# "Упаковка" magic missiles в одно сообщение
+my ($last_mm, $mm_count);
+trig {
+	if(!$mm_count) {
+		enable("MM_COUNT");
+		$last_mm = $_;
+		$mm_count = 1;
+	} else {
+		$mm_count ++;
+	}
+} 'throws a magic missile at|^You watch with selfpride as the magic missile hits', "800ng:GAG";
+
+trig {
+	if($_ ne $last_mm) {
+		disable("MM_COUNT");
+		if ($mm_count > 1) {
+			echo("$last_mm [$mm_count]");
+		} else {
+			echo($last_mm);
+		}
+		$mm_count = 0;
+	}
+} '.*', "2500nf-:MM_COUNT";
+
+## Важные предупрежнения
+sub HL_g {
+	$: = "\003C$_";
+}
+
+sub HL_y {
+	$: = "\003L$_";
+}
+
+sub HL_re {
+	$: = "\003LREFLECT: \003H$_";
+}
+
+sub HL_r {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+}
+
+# Подсветка предупреждений
+my @green_w = (
+'^[A-Za-z \',]+ freezes in place\\.$',
+'^[A-Za-z \',]+ is paralyzed!$',
+'^[A-Za-z \',]+ is blinded by the glitterdust in the air\\.$',
+'^[A-Za-z \',]+ attempts to break free of the black tentacles, but fails!$',
+'comes to your rescue!  You\'re thankful, but a bit dazed\\.$',
+'comes to your aid, but fails miserably\\.$',
+'smiles as the air around \w+ is set ablaze\\.$',
+'^Your kick knocks .* back a few feet and (he|she) falls to the ground\\.$',
+'\w+ smiles as a veil of icy mist surrounds',
+'^You feel much heavier\\.$',
+'^You end your flight, returning to the ground\\.$',
+'^The detect magic wears off\\.$',
+'^Your detect invisibility wears off\\.$',
+'^The air around you loses its solidity\\.$',
+'^You sense the protective magic about you fade away\\.$',
+'^You feel yourself exposed\\.$',
+'^You feel less righteous\\.$',
+'^You feel less protected\\.$',
+'^The white aura around your body fades\\.$',
+'^You feel .* as you swing through .* aura\\.$',
+'^The ball of light following you winks out\\.$',
+'^[A-Za-z \']+ jumps up in the air and flaps his arms wildly!$'		# fly social
+);
+
+foreach (@green_w) {
+	trig(\&HL_g, $_, "n:HIGHLIGHT");
+}
+undef @green_w;
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003C$_";
+} '^You feel a slight chill\\.$', "n:HIGHLIGHT";
+
+# Reflect
+my @reflect_w = (
+'^You get a good hold of $char, shocking him\\.$',
+'^Your shield protects you from ${char}\'s magic missiles\\.$',
+'^(\w+)\'s shield protects him from \\1\'s magic missiles\\.$',
+'^(\w+) misses \\1 and destroys an image instead\\.$'
+);
+
+foreach (@reflect_w) {
+	trig(\&HL_re, $_, "n:HIGHLIGHT");
+}
+undef @reflect_w;
+
+# Осторожно, опасность!
+my @yellow_w = (
+'^[A-Za-z \',]+ pokes you in the back with \w+ finger\\.$',
+'^[A-Za-z \',]+ is continually trying to get behind you\\.$',
+'is destroyed\\.$',
+'decays in your hands\\.$',
+'^A yellowish-green cloud permeates the air\\.$',
+'^You become confused as the surrounding fumes take effect on you\\.$',
+'^[A-Za-z \',]+ starts following you\\.$',
+'^(\w+) stops following (\w+)\\.$',
+'^(\w+) disappears\\.$',
+'^Your body tingles slightly, for a brief moment\\.',
+'^You scream in pain as inky black tentacles constrict you\\.'
+);
+
+foreach (@yellow_w) {
+	trig(\&HL_y, $_, "n:HIGHLIGHT");
+}
+undef @yellow_w;
+
+# Серьезные проблемы
+my @red_w = (
+'^You disappear\\.$',
+'^You lost your concentration!$',
+'^Your casting is disrupted by the fighting!$'
+);
+
+foreach (@red_w) {
+	trig(\&HL_r, $_, "n:HIGHLIGHT");
+}
+undef @red_w;
+
+# Особо опасные ситуации. Такие проблемы показываются в строке состояния
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset P;
+} '^You feel very sick\\.$', "n:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset P;
+} '^You feel burning poison in your blood, and suffer\\.$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003L$_";
+	Fset T;
+} '^The tentacles constricting you make that impossible!$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003L=== $_ ===";
+	sendl('st') if $U::autostand;
+	Fset B;
+} '^You are thrown to the ground by the force of the earthquake\\.$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003L=== $_ ===";
+	sendl('st') if $U::autostand;
+	Fset B;
+} q(^[A-Za-z ',]+ kick knocks you back a few feet and you fall to the ground\\.$), "g:HIGHLIGHT";
+
+trig {
+	$: = "\003L=== $_ ===";
+	sendl('st') if $U::autostand;
+	Fset B;
+} '^The momentum of your kick brings you crashing to the ground\\.$', "g:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003L=== $_ ===";
+	sendl('st') if $U::autostand;
+	Fset B;
+} '^You are sent sprawling', "n:HIGHLIGHT";
+
+trig {
+	Fset B;
+	Fclear P;
+	Fclear D;
+} '^You sit down and rest your tired bones\\.', "n:HIGHLIGHT";
+
+trig {
+	Fset B;
+	Fclear P;
+	Fclear D;
+} '^You rest your tired bones but stay aloft\\.', "n:HIGHLIGHT";
+
+trig {
+	Fset B;
+	Fclear P;
+	Fclear D;
+} '^You take a seat in mid-air\\.', "n:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset C;
+} '^You fall under the influence of', "n:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset S;
+} '^You suddenly lose all feeling of your mouth and tongue\\.$', "n:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset H;
+} '^You freeze in place, unable to move\\.$', "n:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset D;
+} '^You fall down, your ears ringing\\.$', "n:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset D;
+} '^You are completely disoriented\\.$', "n:HIGHLIGHT";
+
+trig {
+	CMD::cmd_bell;
+	$: = "\003J$_";
+	Fset Z;
+} '^You are paralyzed!$', "n:HIGHLIGHT";
+
+# Окончание проблем
+trig {
+	$: = "\003C$_";
+	Fclear P;
+} '^A warm feeling runs through your body\\.$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003C$_";
+	Fclear T;
+} '^The tentacles constricting you weaken and drop away\\.$', "n:HIGHLIGHT";
+
+trig {
+	Fclear P;
+	Fclear Z;
+	Fclear D;
+	Fclear B;
+	Fclear T;
+	Fclear H;
+} '^You stand up\\.$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003C$_";
+	Fclear C;
+} '^You realize that (.*) is a jerk!$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003C$_";
+	Fclear S;
+} '^You feel the oppressive silence on you shatter!$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003C$_";
+	Fclear H;
+} '^You feel the magic bond holding you shatter!$', "n:HIGHLIGHT";
+
+# Триггеры на список игроков, находящихся в игре
+# Часть работы с этим списком находится в prompt hook
+trig {
+	if (!$who_lines) {
+		$who_lines = 1;
+		enable("CHECK_WHO");
+	}
+} '^Mortals$', '2000n:CORE';
+
+trig {
+	if ($who_lines) {
+		$who_lines = 0;
+		disable("CHECK_WHO");
+		my $Total = "\003L$_";
+		foreach my $col (keys(%NCO)) {
+			$Total .= " \003$col($NCO{$col})" unless $col eq "O";
+		}
+		$: = $Total;
+		undef %NCO;
+	}
+} '^\s*Total visible people', '2000n:CORE';
+
+trig {
+	if (!$_ or $_ =~ /^-+$/) {
+		return;
+	}
+	my @title = split /\s+/;
+	my $name = shift @title;
+	foreach my $prefix (qw(Sir Madame Ms Mrs Miss Lady Lord)) {
+		$name = shift @title if $name eq $prefix;
+	}
+	if (defined($char_list{$name})) {
+		my ($class, $color, $message) = @{$char_list{$name}};
+		$message = "- $color $class, $message";
+		$Pcolor = $CLAN_COLOR{$color} || "O";
+		$: = "\003$Pcolor$_ $message";
+		++$NCO{$Pcolor};
+	}
+} '.*', "1500n-:CHECK_WHO";
+
+# Чармисы за работой
+trig {
+	my ($who, $dir) = ($1, $2);
+	if ($U::tracker && $who =~ /$U::tracker$/) {
+		$: = "\003L$_";
+		if($U::autotrack) { sendl($dir); }
+	}
+} '^(.*) says \'They went (\w+)\\.\'$', "2000nf:CORE";
+
+trig {
+	enable('GET_CHARMIE');
+} '^You utter the words, \'charm', "2000fn:CORE";
+
+trig {
+	enable('GET_CHARMIE');
+} '^You wave your hand, and', "2000fn:CORE";
+
+trig {
+	if ( /^(\w+) starts following you\.$/ || /^.* (\w+) starts following you\.$/) {
+		$U::charmie = "all.$1";
+		$U::tracker = $1;
+		msg("Charmie set to $U::charmie, tracker set to $U::tracker");
+	}
+	disable('GET_CHARMIE');
+} '.*', "2100fn-:GET_CHARMIE";
+
+# подсветка колдовства
+trig {
+	my $color = 'H';
+	$name = $3;
+	$color = 'C' if $CMD::complist{$3} or $3 eq 'you';
+	my $spell = $4;
+	$spell = $splist{$spell} if $splist{$spell};
+	$: = "\003C$1\003H$2\003$color$name\003H and utters the words, '\003C$spell\003H'";
+} '^(.*)( focuses on )(.*) and utters the words, \'(.*)\'\\.$', "n:HIGHLIGHT";
+
+trig {
+	my $color = 'H';
+	my $scolor = 'H';
+	my $acolor = 'N';
+	my $spell = $4;
+	$spell = $splist{$spell} if $splist{$spell};
+	$name = $3;
+	$acolor = 'C' if $CMD::complist{$1} or $1 eq 'You';
+	$color = 'K' if $CMD::complist{$3} or $3 eq 'you';
+	if ($3 eq 'you') {
+		$name = 'YOU';
+		$scolor = 'L';
+	}
+	$: = "\003$acolor$1\003$scolor$2\003$color$3\003H and utters the words, '\003C$spell\003H'";
+} '^(.*)( focuses harshly on )(.*) and utters the words, \'(.*)\'\\.$', "n:HIGHLIGHT";
+
+trig {
+	my $spell = $2;
+	my $dot = $3 || '';
+	$spell = $splist{$spell} if $splist{$spell};
+	$: = "\003C$1\003H utters the words, '\003C$spell\003H'$dot";
+} '^(.*) utters? the words, \'(.*)\'(\\.)?$', "n:HIGHLIGHT";
+trig {
+	my $color = 'H';
+	$name = $3;
+	$color = 'C' if $CMD::complist{$3} or $3 eq 'you';
+	$: = "\003C$1\003H$2\003$color$name\003H and utters some strange words.";
+} '^(.*)( focuses on )(.*) and utters some strange words\\.$', "n:HIGHLIGHT";
+
+trig {
+	my $color = 'H';
+	my $scolor = 'H';
+	my $acolor = 'N';
+	$name = $3;
+	$acolor = 'C' if $CMD::complist{$1} or $1 eq 'You';
+	$color = 'K' if $CMD::complist{$3} or $3 eq 'you';
+	if ($3 eq 'you') {
+		$name = 'YOU';
+		$scolor = 'L';
+	}
+	$: = "\003$acolor$1\003$scolor$2\003$color$3\003H and utters some strange words.";
+} '^(.*)( focuses harshly on )(.*) and utters some strange words\\.$', "n:HIGHLIGHT";
+
+trig {
+	$: = "\003C$1\003H utters some strange words.";
+} '^(.*) utters some strange words\\.', "n:HIGHLIGHT";
+
+
+trig { sendl("st") unless $user; } '^You should probably stand up!$', "nf:STAND";
+trig { sendl("st") unless $user; } '^You can\'t do this sitting!$', "nf:STAND";
+trig { sendl("get bread $U::food_container\r\neat bread") if !$U::fight; } '^You are hungry', "n:CORE";
+trig { sendl("dri all.water in inv") if !$U::fight; } '^You are thirsty', "n:CORE";
+trig { CMD::cmd_tickset } '^Your studies ', "n:CORE";
+trig { CMD::cmd_tickset } '^\w+ closes .+ (spellbook|prayerbook) with a content look on', "n:CORE";
+trig { CMD::cmd_tickset } '^\w+ puts away .+ tablets with a content look on', "n:CORE";
+trig { CMD::cmd_tickset } '^The darkness marks the end of another day', "n:CORE";
+trig { CMD::cmd_tickset } '^The cloud-veiled sky becomes even darker as the sun sets', "n:CORE";
+trig { CMD::cmd_tickset } '^The sun slowly sinks in the western horizon', "n:CORE";
+trig { CMD::cmd_tickset } '^The rising sun barely lights the dark and cloudy sky', "n:CORE";
+trig { CMD::cmd_tickset } '^The rising sun proclaims a new day', "n:CORE";
+trig { CMD::cmd_tickset } '^[^*].* decays into dust and blows away\\.$', "n:CORE";
+trig { CMD::cmd_tickset } '^[^*].* crumbles into dust and scatters in the wind\\.', "n:CORE";
+trig { CMD::cmd_tickset } '^[^*].* starts to rain\\.$', "n:CORE";
+
+trig {
+	sendl("get $U::weapon");
+	sendl("wie $U::weapon") unless $user;
+	$: = "\003L$_";
+} '^[^*].* disarms your weapon\\.$', "2000fn:CORE";
+
+sub recall_tank {
+	sendl("get recall $U::recall_container");
+	sendl("recite recall $U::tank");
+}
+
+# Некоторые горячие кнопки
+bindkey (\&CMD::cmd_quit, "C-C");
+bindkey (\&recall_tank, "M-R");
+bindkey { sendl('gro') } "M-g";
+bindkey { sendl('retreat') } "M-r";
+bindkey { sendl('ass') } "M-a";
+bindkey { sendl('flee') } "M-f";
+bindkey { sendl("c 'l b'") } "M-l";
+bindkey { sendl("c 'a b'") } "M-c";
+bindkey { sendl("c 'm m'") } "M-m";
+bindkey { sendl("c 'shoc'") } "M-s";
+bindkey { sendl("c 'f b'") } "M-b";
+bindkey { sendl("c 'h p'") } "M-h";
+bindkey { $U::Target=LE::input; LE::reset(1,1); } "M-C-M";
+bindkey { echo("\003CTarget=$U::Target") } "M-z";
+bindkey { sendl("kill $U::Target") } "M-K";
+bindkey { CMD::cmd_tick } "M-t";
+bindkey { sendl("c 'l b' $U::Target") } "M-L";
+bindkey { sendl("c 'a b' $U::Target") } "M-C";
+bindkey { sendl("c 'm m' $U::Target") } "M-M";
+bindkey { sendl("c 'shoc' $U::Target") } "M-S";
+bindkey { sendl("c 'f b' $U::Target") } "M-B";
+bindkey { sendl("c 'h p' $U::Target") } "M-H";
+
+bindkey { sendl('recite recall') } "265";	#  F1
+bindkey { sendl("get recall $U::recall_container\r\nrecite recall") } "266";
+bindkey { sendl("qua $U::potion") } "267";
+bindkey { sendl($U::F4_cmd) } "268";
+bindkey { sendl("o $U::charmie assi $U::my_name") } "269";
+bindkey { sendl("o $U::charmie resc $U::my_name") } "270";
+
+# Алиасы.
+alias {
+	sendl("o $U::charmie @_");
+} "oc";
+
+alias {
+	if ($_[0] =~ /^(\d+)\.$/) {
+		sendl("get all $1.corpse");
+		return;
+	}
+	if ($_[0] =~ /^\d+$/) {
+		for (my $i = 2; $i <= $_[0]; $i++) {
+			sendl("get all $i.corpse");
+		}
+	}
+	sendl("get all corpse");
+} "gall";
+
+alias {
+	if ($_[0] =~ /^(\d+)\.$/) {
+		sendl("get pile $1.corpse");
+		return;
+	}
+	if ($_[0] =~ /^\d+$/) {
+		for (my $i = 2; $i <= $_[0]; $i++) {
+			sendl("get pile $i.corpse");
+		}
+	}
+	sendl("get pile corpse");
+} "gpile";
+
+alias {
+	if (!$#_) {
+		if ($_[0] =~ /^\d+$/) {
+			for (my $i = 1; $i <= $_[0]; $i++) {
+				sendl("exa $i.corpse");
+			}
+		} elsif ($_[0] =~ /^(\d+)\.$/) {
+			sendl("exa $1.corpse");
+		} else {
+			sendl("exa @_");
+		}
+	} else {
+		sendl("exa @_");
+	}
+} "exa";
+
+alias { sendl("chuckle") }				"quit";
+alias { sendl("c 'shock' @_") }			"sho";
+alias { sendl("c 'shock' @_") }			"shock";
+alias { sendl("c 'm m' @_") }			"mm";
+alias { sendl("c 'l b' @_") }			"bolt";
+alias { sendl("c 'a b' @_") }			"acid";
+alias { sendl("c 'f b' @_") }			"fb";
+alias { sendl("c 'web' @_") }			"web";
+alias { sendl("c 'h p' @_") }			"hold";
+alias { sendl("c 'h p' @_") }			"hp";
+alias { sendl("c 'd i'") }				"di";
+alias { sendl("c 'di ma' @_") }			"dm";
+alias { sendl("c 'de ma'") }			"md";
+alias { sendl("c 'inv' @_") }			"inv";
+alias { sendl("c 'str' @_") }			"str";
+alias { sendl("c 'blur' @_") }			"blur";
+alias { sendl("c 'fly' @_") }			"fly";
+alias { sendl("c 'shi'") }				"shi";
+alias { sendl("c 'anti sh'") }			"ams";
+alias { sendl("c 'sle' @_") }			"sle";
+alias { sendl("c 'c m' @_") }			"cm";
+alias { sendl("c 'c p' @_") }			"cp";
+alias { sendl("c 'c s' @_") }			"col";
+alias { sendl("c 'h m' @_") }			"hm";
+alias { sendl("c 'sil' @_") }			"si";
+alias { sendl("c 'sil' @_") }			"sil";
+alias { sendl("c 'sil' @_") }			"shut";
+alias { sendl("c 'locate' @_") }		"locate";
+alias { sendl("c 'rot' @_ in room") }	"rot";
+alias { sendl("c 'tele' @_") }			"port";
+alias { sendl( "c 'dim door' @_") }		"door";
+alias { sendl( "c 'relo' @_") }			"relo";
+alias { sendl( "c 'relo' @_") }			"puff";
+
+__DATA__
+[aliases]
+
+[tablist]
+
+[hooks]
+
+[triggers]
+
+[complete]
+
+[keys]
+
+[run]
+
+[history]
+
+[vars]
+
