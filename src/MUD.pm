@@ -116,6 +116,12 @@ my $sock_conn=0;
 my @triggers; # the trigger list
 %tags=();
 
+# Registered telnet options. Mapping from option number to hash with the following keys:
+# name    - option name. Example: MSDP
+# init    - sub called after option's handshake
+# handler - handler of option's subnegotiations
+my %telopts;
+
 sub setlp {
   $sock ? $sock->set_lp($_[0]) : undef;
 }
@@ -315,30 +321,66 @@ sub bell($) {
   ::sndevent("MudBeep");
 }
 
+sub register_telopt_handler($$$;$)
+{
+  my $init = shift;
+  my $handler = shift;
+  my $option = shift;
+  my $name = sprintf "0x%02x", $option;
+  $name = shift if $_[0];
+  $telopts{$option} = {name => $name, init => $init, handler => $handler};
+}
+
 sub option_request($$)
 {
   my MUD $self = shift;
   my $option = shift;
 
-  if (69 == $option) #MSDP
+  CL::msg("Wrong option number. Must be in range [0, 254]. "), return unless 0 <= $option && $option <= 254;
+
+  if ($telopts{$option})
   {
+    use bytes;
+
     my $IAC = "\xff";
     my $DO = "\xfd";
-    my $MSDP = "\x45";
-    CL::msg("Enabling MSDP.");
-    MUD::sendr("$IAC$DO$MSDP");
+    CL::msg("Enabling ".$telopts{$option}->{name}.".");
+    my $TELOPT = chr $option;
+    MUD::sendr("$IAC$DO$TELOPT");
+    if ($telopts{$option}{init})
+    {
+      try {
+        $telopts{$option}{init}();      # call to init handler
+      } catch {
+        my $et=shift;
+        my $ei=shift||"";
+        CL::err("$et: $ei");
+      } "...";
+    }
   }
   else
   {
-    CL::msg(sprintf "Requested option 0x%x", $option);
+    CL::msg(sprintf "Requested unregistered option 0x%x", $option);
   }
 }
 
 sub subnegotiation($$)
 {
-    my MUD $self = shift;
-    my $subnegotiation = shift;
-    CL::msg(sprintf("Subnegotiation %s (%d)", join(", ", map { unpack "H*", chr } map { ord } split //, $subnegotiation), length $subnegotiation));
+  use bytes;
+
+  my MUD $self = shift;
+  my $sn = shift;
+  my $option = ord substr $sn, 0, 1;
+  if ($telopts{$option})
+  {
+    try {
+      $telopts{$option}{handler}($sn);  # call to subnegotiaion handler
+    } catch {
+      my $et=shift;
+      my $ei=shift||"";
+      CL::err("$et: $ei");
+    } "...";
+  }
 }
 
 my $lle=0;
@@ -509,4 +551,4 @@ tie $:,'MUD_helper';
 
 1;
 
-# vim: set ts=2 sw=2 tw=0 et syntax=perl :
+# vim: set ts=8 sw=2 tw=0 et syntax=perl :

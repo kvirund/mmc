@@ -930,6 +930,26 @@ alias { sendl( "c 'dim door' @_") }		"door";
 alias { sendl( "c 'relo' @_") }			"relo";
 alias { sendl( "c 'relo' @_") }			"puff";
 
+my $IAC = "\xff";
+my $SB = "\xfa";
+my $SE = "\xf0";
+my $MSDP = "\x45";
+my $MSDP_VAR = "\x01";
+my $MSDP_VAL = "\x02";
+my $MSDP_TABLE_OPEN = "\x03";
+my $MSDP_TABLE_CLOSE = "\x04";
+my $MSDP_ARRAY_OPEN = "\x05";
+my $MSDP_ARRAY_CLOSE = "\x06";
+
+telnet_option
+{
+    my $sn = shift;
+    CL::msg(sprintf("MSDP subnegotiation %s (%d)", join(", ", map { unpack "H*", chr } map { ord } split //, $sn), length $sn));
+} 69, "MSDP", sub {
+    sendr("$IAC$SB$MSDP$MSDP_VAR"."LIST$MSDP_VAL"."REPORTABLE_VARIABLES$IAC$SE");
+    $asdf = 0;
+};
+
 __DATA__
 [aliases]
 
