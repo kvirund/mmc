@@ -12,7 +12,6 @@ $|=1;
 
 print <<EOF
 #include <stdlib.h>
-#include "misc.h"
 
 static struct {
 	int			origsize;
@@ -22,7 +21,22 @@ static struct {
 } perlmodules[]={
 EOF
 ;
+
+my $B2C = "./b2c";
+
 for my $m (@ARGV) {
+	print "// $m\n";
+	if ("--b2c" eq $m)
+	{
+		$B2C = undef;
+		next;
+	}
+	unless (defined $B2C)
+	{
+		$B2C = $m;
+		next;
+	}
+
 	my $mod=$m;
 	$mod =~ s/::/\//g;
 	my $ext="";
@@ -31,12 +45,13 @@ for my $m (@ARGV) {
 	if ($mod =~ /^(.*)=(.*)$/) {
 		$mod=$1;
 		$f=$2;
-		die "$f does not exist" unless -r $f;
+		print "// $f does not exist", die "$f does not exist" unless -r $f;
 	} else {
 		$f=mfind($mod . $ext);
-		die "Can't find $mod in \@INC\n" if (!$f);
+		print "// Can't find $mod in \@INC\n", die "Can't find $mod in \@INC\n" if (!$f);
 	}
-	system("./b2c $f $mod");
+	print "// $B2C $f $mod\n";
+	system("$B2C $f $mod");
 	die "b2c failed: $?\n" if ($?);
 }
 
