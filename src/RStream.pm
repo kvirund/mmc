@@ -49,3 +49,5 @@ BEGIN { # stop perl from bitching to stdout
 }
 
 1;
+
+# vim: set ts=8 sw=2 tw=0 et syntax=perl :

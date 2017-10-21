@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #ifdef WIN32
@@ -102,6 +103,7 @@ static struct socket {
     struct sockaddr_in	remote;
 
     PSHANDLER	    handler;
+
     void	    *data;
 } sockets[NSOCK];
 
@@ -112,6 +114,9 @@ static struct socket {
 #define	sGNUM	    4
 #define	sSUBNEG	    5
 #define	sSUBNEGD    6
+
+#define	TELOPT_MCCPv1 85
+#define	TELOPT_MCCPv2 86
 
 #ifdef WIN32
 
@@ -555,6 +560,8 @@ static size_t process_sockbuf(int sock,const unsigned char *sbuf,size_t slen) {
     const unsigned char	*p,*e;
     unsigned char	c;
     struct socket	*s=sockets+sock;
+    char buffer[1024];
+    unsigned option;
 
     if (s->mode==SM_HALF)
       return process_half(sock,sbuf,slen);
@@ -654,8 +661,17 @@ mccp_braindamage:   s->state=sNORMAL;
 					  started */
 			}
 		      }
+
+                      break;
 		    }
+
+                    // handle non-MCCP options
+                    if (0 < s->sbbptr)
+                    {
+                      s->handler(sock, SSUBNEG, s->data, s->sbbuf, s->sbbptr);
+                    }
 		    break;
+
 		  default:
 		    s->state=sNORMAL;
 		}
@@ -668,7 +684,9 @@ mccp_braindamage:   s->state=sNORMAL;
 			if (s->tcmd==WONT)
 			    s->handler(sock,SECHOON,s->data,NULL,0);
 			break;
-		    case 85: case 86: /* mccp, always allow compression */
+
+		    case TELOPT_MCCPv1:
+                    case TELOPT_MCCPv2: /* mccp, always allow compression */
 			if (s->tcmd==WILL) {
 			  unsigned char	tmp[]={IAC,DO,0};
 			  tmp[2]=c;
@@ -676,6 +694,12 @@ mccp_braindamage:   s->state=sNORMAL;
 			  clmsg("Enabling MCCP.");
 			}
 			break;
+
+                    default:
+                        // send to Perl option request.
+                        option = (unsigned char) c;
+                        s->handler(sock, SOPTREQ, s->data, &option, 0);
+                        break;
 		}
 		s->state=sNORMAL;
 		break;
@@ -1111,3 +1135,4 @@ int sock_get_tcp_info(int s,int full,char *buf,int *bufsize) {
 
 #endif
 
+/* vim: set ts=8 sw=2 tw=0 et syntax=c :*/

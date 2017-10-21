@@ -116,6 +116,12 @@ my $sock_conn=0;
 my @triggers; # the trigger list
 %tags=();
 
+# Registered telnet options. Mapping from option number to hash with the following keys:
+# name    - option name. Example: MSDP
+# init    - sub called after option's handshake
+# handler - handler of option's subnegotiations
+my %telopts;
+
 sub setlp {
   $sock ? $sock->set_lp($_[0]) : undef;
 }
@@ -315,6 +321,68 @@ sub bell($) {
   ::sndevent("MudBeep");
 }
 
+sub register_telopt_handler($$$;$)
+{
+  my $init = shift;
+  my $handler = shift;
+  my $option = shift;
+  my $name = sprintf "0x%02x", $option;
+  $name = shift if $_[0];
+  $telopts{$option} = {name => $name, init => $init, handler => $handler};
+}
+
+sub option_request($$)
+{
+  my MUD $self = shift;
+  my $option = shift;
+
+  CL::msg("Wrong option number. Must be in range [0, 254]. "), return unless 0 <= $option && $option <= 254;
+
+  if ($telopts{$option})
+  {
+    use bytes;
+
+    my $IAC = "\xff";
+    my $DO = "\xfd";
+    CL::msg("Enabling ".$telopts{$option}->{name}.".");
+    my $TELOPT = chr $option;
+    MUD::sendr("$IAC$DO$TELOPT");
+    if ($telopts{$option}{init})
+    {
+      try {
+        $telopts{$option}{init}();      # call to init handler
+      } catch {
+        my $et=shift;
+        my $ei=shift||"";
+        CL::err("$et: $ei");
+      } "...";
+    }
+  }
+  else
+  {
+    CL::msg(sprintf "Requested unregistered option 0x%x", $option);
+  }
+}
+
+sub subnegotiation($$)
+{
+  use bytes;
+
+  my MUD $self = shift;
+  my $sn = shift;
+  my $option = ord substr $sn, 0, 1;
+  if ($telopts{$option})
+  {
+    try {
+      $telopts{$option}{handler}($sn);  # call to subnegotiaion handler
+    } catch {
+      my $et=shift;
+      my $ei=shift||"";
+      CL::err("$et: $ei");
+    } "...";
+  }
+}
+
 my $lle=0;
 my $lp;
 my $lpd=1;
@@ -450,6 +518,15 @@ sub sendl($) {
   }
 }
 
+sub sendr($) {
+  my $text = shift;
+  if ($sock && $sock_conn) {
+    $sock->write($text, 1);
+  } else {
+    CL::warn("Can't send text: not connected to a server.");
+  }
+}
+
 package MUD_helper;
 
 use Ex;
@@ -473,3 +550,5 @@ sub STORE {
 tie $:,'MUD_helper';
 
 1;
+
+# vim: set ts=8 sw=2 tw=0 et syntax=perl :

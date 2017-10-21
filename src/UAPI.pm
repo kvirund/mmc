@@ -59,6 +59,12 @@ sub trig(&$;$) {
   MUD::add_trigger($p,undef,$c,$f);
 }
 
+sub telnet_option(&$;$&)
+{
+    my ($handler, $number, $name, $init) = @_;
+    MUD::register_telopt_handler($init, $handler, $number, $name);
+}
+
 sub subst($$;$) {
   my ($p,$c,$f)=@_;
   $f||="";
@@ -92,6 +98,10 @@ sub hook(&$) {
 
 sub sendl($) {
   MUD::sendl($_[0]);
+}
+
+sub sendr($) {
+  MUD::sendr($_[0]);
 }
 
 sub timeout(&$;$) {

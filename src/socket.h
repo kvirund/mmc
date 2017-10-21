@@ -18,8 +18,10 @@ extern "C" {
 #define	SIOERR		7
 #define	SCLOSED		8
 #define	SBELL		9
+#define SOPTREQ     10
+#define SSUBNEG     11
 
-typedef void (*PSHANDLER)(int sock,int code,void *data,const Char *buf,size_t length);
+typedef void (*PSHANDLER)(int sock, int code, void *data, void *buf, size_t length);
 
 void	swrite(int s,const void *ptr,int count,int raw);
 void	sputc(int s,char c);

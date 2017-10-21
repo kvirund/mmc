@@ -38,7 +38,7 @@ static void timeout_callback(int cancel,SV *obj) {
 }
 
 static void socket_callback(int sc_sock,int sc_code,SV *obj,
-			    Char *sc_buf,int sc_buflen) {
+			    void *sc_buf,int sc_buflen) {
     int	    freeobj=0;
     dSP;
 
@@ -89,6 +89,16 @@ static void socket_callback(int sc_sock,int sc_code,SV *obj,
 	    PUTBACK;
 	    perl_call_method("bell",G_DISCARD|G_VOID|MY_EVAL);
 	    break;
+    case SOPTREQ:
+        XPUSHs(sv_2mortal(newSVuv(*(int*)sc_buf)));
+        PUTBACK;
+        perl_call_method("option_request", G_DISCARD | G_VOID | MY_EVAL);
+        break;
+    case SSUBNEG:
+        XPUSHs(sv_2mortal(newSVpvn((char*) sc_buf, sc_buflen)));
+        PUTBACK;
+        perl_call_method("subnegotiation", G_DISCARD | G_VOID | MY_EVAL);
+        break;
     }
 
     FREETMPS;
@@ -396,6 +406,12 @@ twcrpanel(x,y,string)
 	window_output_crpanel(x,y,sbuf,len>>1);
 
 void
+twcrpanel_set_width(new_width)
+    int new_width
+    CODE:
+    window_set_rpanel_width(new_width);
+
+void
 twstatus(x,y,string,c)
     int x
     int y
@@ -511,15 +527,16 @@ sclose(sock)
     int	sock
 
 void
-swrite(sock,string)
+swrite(sock,string,raw=0)
     int	sock
     SV *string
+    int raw
     PREINIT:
 	STRLEN	len;
 	char	*sbuf;
     CODE:
 	sbuf = SvPV(string,len);
-	swrite(sock,sbuf,len,0);
+	swrite(sock,sbuf,len,raw);
 
 void
 swriteln(sock)
