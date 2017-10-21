@@ -97,7 +97,7 @@ C1: goto E2 if (pos==length);
     $w.="\003$1" if (/\G(.)/sgc);
     goto $ps;
 
-V1: if (m/\G{([^}]*)}/sgc || m/\G(\d)/sgc || m/\G(\w+)/sgc) { $w.="\001$1\001" }
+V1: if (m/\G\{([^}]*)\}/sgc || m/\G(\d)/sgc || m/\G(\w+)/sgc) { $w.="\001$1\001" }
     goto $ps;
 
 E1: $w='' if (!defined($w) && $wl[2]==1);
@@ -149,7 +149,7 @@ Q2: goto E1 if (pos==length);
     $result.=$1 if (/\G(.)/sgc);
     goto S0;
 
-V1: if (m/\G{([^}]*)}/sgc || m/\G(\d)/sgc || m/\G(\w+)/sgc) { $result.="\001$1\001" }
+V1: if (m/\G\{([^}]*)\}/sgc || m/\G(\d)/sgc || m/\G(\w+)/sgc) { $result.="\001$1\001" }
     goto S0;
 
 C1: goto E1 if (pos==length);

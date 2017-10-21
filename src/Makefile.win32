@@ -1,13 +1,16 @@
-CC=cl -nologo -Oxs -G5 -MD -I. -W3 -DWIN32 -DNDEBUG
-LD=cl -nologo -MD
+CCOPTS=-nologo -GF -W3 -O1 -MD -Zi -DNDEBUG -GL -DWIN32 -D_CONSOLE -DNO_STRICT -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -D_WINSOCK_DEPRECATED_NO_WARNINGS  -DPERL_TEXTMODE_SCRIPTS -DPERL_IMPLICIT_CONTEXT -DPERL_IMPLICIT_SYS  -I"C:\perl\lib\CORE"
+LDOPTS=-nologo -nodefaultlib -debug -opt:ref,icf -ltcg  -libpath:"c:\perl\lib\CORE"  -machine:x86 -subsystem:console,"5.01"  "C:\perl\lib\CORE\perl526.lib" "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\\lib\oldnames.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\kernel32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\user32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\gdi32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\winspool.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\comdlg32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\advapi32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\shell32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\ole32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\oleaut32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\netapi32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\uuid.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\ws2_32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\mpr.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\winmm.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\version.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\odbc32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\odbccp32.lib" "C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86\comctl32.lib" "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\\lib\msvcrt.lib" "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\\lib\vcruntime.lib" "C:\Program Files (x86)\Windows Kits\10\lib\10.0.10240.0\ucrt\x86\ucrt.lib"
+CC=cl -nologo -Oxs -G5 -MD -I. -W3 -DWIN32 -DNDEBUG -I"C:\Program Files (x86)\zlib\include"
+LD=cl -nologo -MD $(LDOPTS)
 PD=c:\perl
 PP=$(PD)\lib
 PE=$(PD)\bin\perl.exe
 PLP=$(PD)\lib\CORE
-PCC=$(CC) -I$(PP)\CORE -DNO_STRICT -DPERL_MSVCRT_READFIX
+PCC=$(CC) $(CCOPTS)
 HDR=timeout.h socket.h Char.h config_h.win32 window.h output.h cmalloc.h misc.h window_priv.h config.h
-LIBS=zlib.lib ws2_32.lib kernel32.lib user32.lib gdi32.lib winmm.lib advapi32.lib comdlg32.lib
-PLIB=$(PLP)\perl56.lib
+# LIBS="C:\Program Files (x86)\zlib\lib\zlib.lib" oldnames.lib kernel32.lib user32.lib gdi32.lib winspool.lib  comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib  netapi32.lib uuid.lib ws2_32.lib mpr.lib winmm.lib  version.lib odbc32.lib odbccp32.lib comctl32.lib bufferoverflowU.lib msvcrt.lib
+LIBS="C:\Program Files (x86)\zlib\lib\zlib.lib" ws2_32.lib kernel32.lib user32.lib gdi32.lib winmm.lib advapi32.lib comdlg32.lib
+PLIB=$(PLP)\perl526.lib
 
 all: mmc.exe
 
@@ -15,7 +18,7 @@ config.h: config_h.win32
 	cmd /c copy /b /y config_h.win32 config.h
 
 b2c.exe: b2c.c
-	$(CC) -Feb2c.exe b2c.c zlib.lib
+	$(CC) -Feb2c.exe b2c.c "C:\Program Files (x86)\zlib\lib\zlib.lib"
 
 CL.obj: CL.c $(HDR)
 	$(PCC) -c CL.c
@@ -36,7 +39,7 @@ perlmodules.obj: perlmodules.c
 perlmodules.c:	RStream.pm DCommand.pm Ticker.pm Status.pm UAPI.pm \
 		CL.pm CMD.pm Conf.pm Ex.pm Keymap.pm LE.pm Main.pm  \
 		MUD.pm Parser.pm packmod.pl b2c.exe
-	$(PE) packmod.pl AutoLoader DynaLoader=DLWin32.pm Carp Carp::Heavy warnings::register warnings \
+	$(PE) -I. packmod.pl AutoLoader DynaLoader=DLWin32.pm Carp Carp::Heavy warnings::register warnings \
 		strict integer vars fields base locale Exporter Exporter::Heavy \
 		Symbol Text::ParseWords Ex CL Conf CMD LE Parser MUD Keymap Main \
 		RStream DCommand Ticker Status UAPI > perlmodules.c.tmp
@@ -70,7 +73,7 @@ mmc.res: mmc.rc resource.h
 	rc -fommc.res mmc.rc
 
 mmc.exe: CL.obj main.obj perlmodules.obj socket.obj version.obj timeout.obj win32.obj cmalloc.obj misc.obj window.obj xsinit.obj mmc.res
-	$(LD) -Femmc.exe CL.obj main.obj perlmodules.obj socket.obj timeout.obj version.obj win32.obj cmalloc.obj misc.obj window.obj xsinit.obj mmc.res $(PLIB) $(LIBS) -link /subsystem:windows /opt:nowin98 /opt:ref /opt:icf
+	$(LD) -Femmc.exe CL.obj main.obj perlmodules.obj socket.obj timeout.obj version.obj win32.obj cmalloc.obj misc.obj window.obj xsinit.obj mmc.res $(PLIB) $(LIBS) -link /subsystem:windows /opt:ref /opt:icf
 
 clean:
 	-cmd /c del *.obj
