@@ -24,10 +24,11 @@ static PerlInterpreter *my_perl;
 #define	MakeStr(arg)  MakeStr2(arg)
 #define MakeStr2(arg) #arg
 
-const char  *iargv[]={"perl","-we",
+const char  *iargv[] = { "perl","-we",
 "#line " MakeStr(__LINE__) " " MakeStr(__FILE__) "\n\n"
 "sub new_require(*) {\n"
 "  my $arg=@_>0 ? $_[0] : $_;\n"
+"  return 1 if $arg =~ m/\\d,\\d+(.pm)?/;"
 "  my ($pkg,$cfile,$line)=caller;\n"
 "  if ($arg =~ /^\\d+(\\.\\d+)?$/) {\n"
 "    die \"Perl $arg required--this is only version $], stopped at $cfile line $line.\\n\" if $arg>$];\n"

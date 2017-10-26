@@ -560,7 +560,6 @@ static size_t process_sockbuf(int sock,const unsigned char *sbuf,size_t slen) {
     const unsigned char	*p,*e;
     unsigned char	c;
     struct socket	*s=sockets+sock;
-    char buffer[1024];
     unsigned option;
 
     if (s->mode==SM_HALF)
