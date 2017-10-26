@@ -76,7 +76,7 @@ sub line($$) { }
 sub prompt($$) { }
 sub bell($) { }
 sub option_requested($$) { }
-sub subnegitiation($$) { }
+sub subnegotiation($$) { }
 
 sub write {
     my CL::Socket $self=$_[0];
