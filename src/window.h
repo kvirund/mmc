@@ -23,6 +23,9 @@ void	window_output_text(int w,int flag,const char *text,int len,int color);
 void	window_output_cstatus(int x,int y,const char *ctext,int len);
 void	window_output_status(int x,int y,const char *text,int len,int color);
 
+void	window_output_crpanel(int x, int y, const char *ctext, int len);
+void	window_set_rpanel_width(int rpw);
+
 void	window_output_cinput(int x,const char *ctext,int len);
 void	window_output_input(int x,const char *text,int len,int color);
 void	window_insert_input(int x,int n);

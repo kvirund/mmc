@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.0)
 
 project(mmc)
 
-STRING (REGEX REPLACE "/RTC(su|[1su])" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-
 find_package(PERL REQUIRED)
 
 set(HEADERS src/timeout.h src/socket.h src/Char.h src/window.h src/output.h src/cmalloc.h src/misc.h config.h)
@@ -24,8 +22,21 @@ execute_process(COMMAND ${PERL_EXECUTABLE} -MConfig -e "print \"\$Config{archlib
 message(STATUS "Perl include directory: ${PERL_INCLUDE}")
 
 execute_process(COMMAND ${PERL_EXECUTABLE} -MConfig -e "print \$Config{libperl};" OUTPUT_VARIABLE PERL_LIB)
-find_library(PERL_LIBRARY "${PERL_LIB}" ${PERL_INCLUDE} NO_DEFAULT_PATH)
-message(STATUS "Perl library: ${PERL_LIBRARY}")
+find_library(PERL_SHARED_LIBRARY "${PERL_LIB}" ${PERL_INCLUDE} NO_DEFAULT_PATH)
+message(STATUS "Perl library: ${PERL_SHARED_LIBRARY}")
+
+get_filename_component(PERL_LIBRARY_DIRECTORY ${PERL_SHARED_LIBRARY} DIRECTORY)
+get_filename_component(PERL_STATIC_LIBRARY ${PERL_SHARED_LIBRARY} NAME_WE)
+get_filename_component(PERL_LIBRARY_EXTENSION ${PERL_SHARED_LIBRARY} EXT)
+set(PERL_STATIC_LIBRARY "${PERL_LIBRARY_DIRECTORY}/${PERL_STATIC_LIBRARY}s${PERL_LIBRARY_EXTENSION}")
+message(STATUS "Perl static library: ${PERL_STATIC_LIBRARY}")
+
+option(PERL_STATIC "Whether to use satatic or shared library." NO)
+if (PERL_STATIC)
+	set(PERL_LIBRARY "${PERL_STATIC_LIBRARY}")
+else ()
+	set(PERL_LIBRARY "${PERL_SHARED_LIBRARY}")
+endif ()
 
 execute_process(COMMAND ${PERL_EXECUTABLE} -MConfig -e "print \$Config{privlibexp};" OUTPUT_VARIABLE PERL_MODULES_DIRECTORY)
 message(STATUS "Perl modules folder: ${PERL_MODULES_DIRECTORY}")
@@ -55,10 +66,12 @@ add_custom_command(OUTPUT perlmodules.c
 		${PROJECT_SOURCE_DIR}/src/Ticker.pm
 	COMMAND ${PERL_EXECUTABLE} -I${PROJECT_SOURCE_DIR}/src/ ${PROJECT_SOURCE_DIR}/src/packmod.pl --b2c $<TARGET_FILE:b2c>
 		AutoLoader DynaLoader=${PROJECT_SOURCE_DIR}/src/DLWin32.pm Config=${PROJECT_SOURCE_DIR}/src/Config.pm
+#		fields=${PROJECT_SOURCE_DIR}/src/fields.pm
 		Carp Carp::Heavy warnings::register warnings
-		strict integer vars fields base locale Exporter Exporter::Heavy Symbol Text::ParseWords Ex CL Conf CMD
-		LE Parser MUD Keymap Main RStream DCommand Ticker Status UAPI bytes Hash/Util Scalar/Util
-		List/Util XSLoader > perlmodules.c
+		strict integer vars base locale Exporter Exporter::Heavy Symbol Text::ParseWords Ex CL Conf CMD
+		LE Parser MUD Keymap Main RStream DCommand Ticker Status UAPI bytes
+		Hash/Util Scalar/Util List/Util fields
+		XSLoader > perlmodules.c 
 	COMMENT "Packing perl modules into perlmodules.c")
 
 add_executable(b2c src/b2c.c)
@@ -72,7 +85,7 @@ include_directories(${ZLIB_INCLUDE_DIRS})
 target_link_libraries(b2c ${ZLIB_LIBRARIES})
 target_link_libraries(mmc ${ZLIB_LIBRARIES} ${PERL_LIBRARY})
 if (WIN32)
-	target_link_libraries(mmc ws2_32.lib winmm.lib)
+	target_link_libraries(mmc ws2_32.lib winmm.lib version.lib comctl32.lib)
 endif()
 
 # vim: set ts=4 sw=4 tw=0 noet syntax=cmake :
