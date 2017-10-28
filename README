@@ -1,3 +1,61 @@
 MUD (Multy User Dimension) client.
 
 Source was imported from http://haali.su/mmc/ and modified to make possible to compile with morden Perl.
+
+Compilation on Windows
+----------------------
+
+Current sources were tested with Microsoft Visual Studio 2015 and Perl 5.26.1.
+
+First of all you should change your Perl Makefile. You need to go to your Perl
+sources and go to its win32 subdirectory. There is Makefile that you have to
+change. I checked the following configuration:
+
+```diff
+--- Makefile.original   2017-09-07 14:19:52.000000000 -0500
++++ Makefile.modified   2017-10-26 20:13:03.992252900 -0500
+@@ -27,7 +27,7 @@
+ # Uncomment if you want to build a 32-bit Perl using a 32-bit compiler
+ # on a 64-bit version of Windows.
+ #
+-#WIN64         = undef
++WIN64          = undef
+
+ #
+ # Comment this out if you DON'T want your perl installation to be versioned.
+@@ -112,7 +112,7 @@
+ # uncomment exactly one of the following
+ #
+ # Visual C++ 6.0 (aka Visual C++ 98)
+-CCTYPE         = MSVC60
++#CCTYPE                = MSVC60
+ # Visual C++ .NET 2002/2003 (aka Visual C++ 7.0/7.1) (full version)
+ #CCTYPE                = MSVC70
+ # Visual C++ Toolkit 2003 (aka Visual C++ 7.1) (free command-line tools)
+@@ -140,7 +140,7 @@
+ # Visual C++ 2013 Express Edition (aka Visual C++ 12.0) (free version)
+ #CCTYPE                = MSVC120FREE
+ # Visual C++ 2015 (aka Visual C++ 14.0) (full version)
+-#CCTYPE                = MSVC140
++CCTYPE         = MSVC140
+ # Visual C++ 2015 Express Edition (aka Visual C++ 14.0) (free version)
+ #CCTYPE                = MSVC140FREE
+ # Visual C++ 2017 (aka Visual C++ 14.1) (all versions)
+```
+
+Now you are ready to build your own Perl. Just open "Developer Command Prompt
+for VS2015" and type `nmake`. When everything is built type `nmake install`. I
+don't suggest you to perform any testing as I cannot tell you what you should do
+in case of this testing is failed.
+
+Also you need to build ZLib. But it seems to me easy enough to don't mention it.
+I used ZLib 1.2.8. You can take it here: [ZLib on GitHub](https://github.com/madler/zlib).
+
+Then build `mmc` as usual using CMake. After all, you should copy few files from
+your Perl installation to the folder with built mmc executable file:
+
+  - `%PERL_DIR%\bin\perl526.dll` -> `%MMC_DIR%`
+  - `%PERL_DIR%\lib\auto\Hash` -> `%MMC_DIR%\lib\perl\auto\`
+  - `%PERL_DIR%\lib\auto\List` -> `%MMC_DIR%\lib\perl\auto\`
+
+[modeline]: # ( vim: set fenc=utf-8 spell spl=en ts=4 sw=4 tw=80 et syntax=markdown : )

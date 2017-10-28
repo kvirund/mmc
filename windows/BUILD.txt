@@ -1,2 +1,0 @@
-First build project "b2c", and then "mmc".
-For building "mmc" project you need Perl installed at C:\Perl64. If you have a different location, make appropriate changes in prebuild.cmd.
