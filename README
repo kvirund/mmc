@@ -1,8 +1,9 @@
 MUD (Multy User Dimension) client.
+==================================
 
 Source was imported from http://haali.su/mmc/ and modified to make possible to compile with morden Perl.
 
-Compilation on Windows
+Compiling on Windows
 ----------------------
 
 Current sources were tested with Microsoft Visual Studio 2015 and Perl 5.26.1.
@@ -57,5 +58,43 @@ your Perl installation to the folder with built mmc executable file:
   - `%PERL_DIR%\bin\perl526.dll` -> `%MMC_DIR%`
   - `%PERL_DIR%\lib\auto\Hash` -> `%MMC_DIR%\lib\perl\auto\`
   - `%PERL_DIR%\lib\auto\List` -> `%MMC_DIR%\lib\perl\auto\`
+
+Additional features
+-------------------
+
+### MSDP support
+
+Sample scripts to be put into `mmc.ini` to turn on MSDP support on your client:
+
+```perl
+$MSDP_OPT = "\x45";
+
+$MSDP_VAR = "\x1";
+$MSDP_VAL = "\x2";
+
+$TELNET_IAC = "\xff";
+$TELNET_SB = "\xfa";
+$TELNET_SE = "\xf0";
+
+sub MSDP_Init
+{
+	msg("Initializing MSDP.");
+	MUD::sendr("$TELNET_IAC$TELNET_SB$MSDP_OPT$MSDP_VAR" . "REPORT$MSDP_VAL" . "ROOM$TELNET_IAC$TELNET_SE");
+}
+
+sub MSDP_Data($)
+{
+	my $s = unpack "H*", shift;
+	$s =~ s/(..)/ 0x\1/g;
+	msg("Got MSDP data: $s");
+}
+
+MUD::register_telopt_handler(\&MSDP_Init, \&MSDP_Data, 0x45, "MSDP");
+```
+
+This script turns on MSDP protocol if server supports it and requests reporing
+`ROOM` variable. However, it shows response just as a hex dump right in your
+main mmc window. Probably later it will be turned into a better shape but for
+now you should do it yourself.
 
 [modeline]: # ( vim: set fenc=utf-8 spell spl=en ts=4 sw=4 tw=80 et syntax=markdown : )
