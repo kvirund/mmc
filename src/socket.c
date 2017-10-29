@@ -93,7 +93,7 @@ static struct socket {
     int		    acnt;
     unsigned char   tcmd;
 
-    unsigned char   sbbuf[128];
+    unsigned char   sbbuf[4096];
     size_t	    sbbptr;
 
     int		    mode;
