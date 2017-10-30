@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.0)
 
 project(mmc)
 
-find_package(PERL REQUIRED)
+find_package(Perl REQUIRED)
 
 set(HEADERS src/timeout.h src/socket.h src/Char.h src/window.h src/output.h src/cmalloc.h src/misc.h config.h)
-set(SOURCES src/main.c src/socket.c src/timeout.c src/window.c src/misc.c src/cmalloc.c src/win32.c src/version.c xsinit.c perlmodules.c CL.c)
+set(SOURCES src/main.c src/socket.c src/timeout.c src/window.c src/misc.c src/cmalloc.c src/version.c xsinit.c perlmodules.c CL.c)
 
 if (WIN32)
 	add_custom_command(OUTPUT config.h
@@ -15,14 +15,51 @@ if (WIN32)
 
 	enable_language(RC)
 	set(HEADERS src/window_priv.h ${HEADERS})
-	set(SOURCES src/mmc.rc ${SOURCES})
+	set(SOURCES src/mmc.rc src/win32.c ${SOURCES})
+else ()
+	include(CheckIncludeFiles)
+
+	check_include_files(stdint.h HAVE_STDINT_H)
+	check_include_files(inttypes.h HAVE_INTTYPES_H)
+	check_include_files(memory.h HAVE_MEMORY_H)
+	check_include_files(stdlib.h HAVE_STDLIB_H)
+	check_include_files(strings.h HAVE_STRINGS_H)
+	check_include_files(string.h HAVE_STRING_H)
+	check_include_files(sys/stat.h HAVE_SYS_STAT_H)
+	check_include_files(sys/types.h HAVE_SYS_TYPES_H)
+	check_include_files(unistd.h HAVE_UNISTD_H)
+
+	include(CheckLibraryExists)
+
+	check_library_exists(curses setupterm "" HAVE_LIBCURSES)
+	check_library_exists(ncurses setupterm "" HAVE_LIBNCURSES)
+	check_library_exists(nsl gethostbyname  "" HAVE_NSL)
+	check_library_exists(socket socket "" HAVE_SOCKET)
+
+	include(CheckFunctionExists)
+	check_function_exists(snprintf HAVE_SNPRINTF)
+
+	include(CheckTypeSize)
+
+	check_type_size(uint16_t uint16_t)
+
+	include(CheckSymbolExists)
+	check_symbol_exists(socklen_t "sys/types.h;sys/socket.h" HAVE_SOCKLEN_T)
+
+	set(PACKAGE "${CMAKE_PROJECT_NAME}")
+	set(VERSION 4.1)
+
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config.h.in config.h)
+
+	set(HEADERS src/output.h ${HEADERS})
+	set(SOURCES src/output.c ${SOURCES})
 endif ()
 
 execute_process(COMMAND ${PERL_EXECUTABLE} -MConfig -e "print \"\$Config{archlib}/CORE\";" OUTPUT_VARIABLE PERL_INCLUDE)
 message(STATUS "Perl include directory: ${PERL_INCLUDE}")
 
 execute_process(COMMAND ${PERL_EXECUTABLE} -MConfig -e "print \$Config{libperl};" OUTPUT_VARIABLE PERL_LIB)
-find_library(PERL_SHARED_LIBRARY "${PERL_LIB}" ${PERL_INCLUDE} NO_DEFAULT_PATH)
+find_library(PERL_SHARED_LIBRARY "${PERL_LIB}" PATHS ${PERL_INCLUDE})
 message(STATUS "Perl library: ${PERL_SHARED_LIBRARY}")
 
 get_filename_component(PERL_LIBRARY_DIRECTORY ${PERL_SHARED_LIBRARY} DIRECTORY)
@@ -77,8 +114,16 @@ add_custom_command(OUTPUT perlmodules.c
 add_executable(b2c src/b2c.c)
 add_executable(mmc ${SOURCES} ${HEADERS})
 
-set_target_properties(mmc PROPERTIES LINK_FLAGS "/subsystem:windows /opt:ref /opt:icf /DEBUG")
-set_target_properties(mmc PROPERTIES COMPILE_FLAGS "${PERL_CCOPTS} /Od")
+set(MMC_LINK_FLAGS "")
+set(MMC_COMPILE_FLAGS "${PERL_CCOPTS}")
+
+if (WIN32)
+	set(MMC_LINK_FLAGS "${MMC_LINK_FLAGS} /subsystem:windows /opt:ref /opt:icf /DEBUG")
+	set(MMC_COMPILE_FLAGS "${MMC_COMPILE_FLAGS} /Od")
+endif ()
+
+set_target_properties(mmc PROPERTIES LINK_FLAGS "${MMC_LINK_FLAGS}")
+set_target_properties(mmc PROPERTIES COMPILE_FLAGS "${MMC_COMPILE_FLAGS}")
 
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
@@ -86,6 +131,8 @@ target_link_libraries(b2c ${ZLIB_LIBRARIES})
 target_link_libraries(mmc ${ZLIB_LIBRARIES} ${PERL_LIBRARY})
 if (WIN32)
 	target_link_libraries(mmc ws2_32.lib winmm.lib version.lib comctl32.lib)
+else ()
+	target_link_libraries(mmc pthread curses)
 endif()
 
 # vim: set ts=4 sw=4 tw=0 noet syntax=cmake :
