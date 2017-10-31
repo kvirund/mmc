@@ -50,7 +50,7 @@ static int    g_ix;	  /* cursor position in input line */
 
 static int    width = 100;	  /* screen width */
 static int    height = 100;	  /* screen height */
-static int    rpanel_width = 20; /* right panel width */
+int    rpanel_width = 20; /* right panel width */
 static int    rpanel_max_height = 400; /* right panel max height */
 static int    sbw_height; /* split scrollback height */
 static int    status_mode=2;/* status line place/visibility */
@@ -135,24 +135,27 @@ void  window_resize(int neww,int newh) {
       statusy=-1;
       break;
   }
-  if (width!=neww) {
-    width=neww-rpanel_width;
-    for (i=0;i<10;++i) {
+
+  if (rpanel_width + width != neww)
+  {
+    width = neww - rpanel_width;
+    for (i = 0; i < 10; ++i) {
       if (!(windows[i].flags&WF_VALID))
-	continue;
+        continue;
       /* recalculate vlines */
-      windows[i].vlines=0;
-      for (j=0;j<windows[i].lines;++j)
-        windows[i].vlines+=(windows[i].text[(j+windows[i].ptr)%windows[i].max]->len-1)/width+1;
+      windows[i].vlines = 0;
+      for (j = 0; j < windows[i].lines; ++j)
+        windows[i].vlines += (windows[i].text[(j + windows[i].ptr) % windows[i].max]->len - 1) / width + 1;
       /* disable scrollback after width change */
-      windows[i].flags&=~WF_SBW;
+      windows[i].flags &= ~WF_SBW;
     }
     /* resize input line */
-    g_input=s_grow(g_input,width,7);
+    g_input = s_grow(g_input, width, 7);
     /* resize status lines */
-    for (j=0;j<status_height;++j)
-      g_status[j]=s_grow(g_status[j],width,7);
+    for (j = 0; j < status_height; ++j)
+      g_status[j] = s_grow(g_status[j], width, 7);
   }
+
   if (cur_win>=0)
     redraw(cur_win,0,1);
   else
@@ -184,8 +187,10 @@ const char *window_init(void) {
   out_update_winsize();
   /* create right panel lines */
   g_rpanel = chk_malloc(rpanel_max_height*sizeof(String*));
-  for (i = 0; i<rpanel_max_height; ++i)
-	  g_rpanel[i] = s_new(rpanel_width, 0, 7);
+  for (i = 0; i < rpanel_max_height; ++i)
+  {
+    g_rpanel[i] = s_new(rpanel_width, 0, 7);
+  }
   return NULL;
 }
 
@@ -314,6 +319,16 @@ void	window_set_status_mode(int mode,int sh) {
     /* redraw screen */
     window_resize(width+rpanel_width,height);
   }
+}
+
+int window_get_rpanel_height()
+{
+  return height;	// the same as height of the main window
+}
+
+int window_get_rpanel_width()
+{
+  return rpanel_width;
 }
 
 void window_set_rpanel_width(int rpw)
@@ -637,12 +652,12 @@ static void   sbdraw(struct Window *w) {
 
 static void rpaneldraw()
 {
-	int i;
+  int i;
 
-	for (i = 0; i<height && i<rpanel_max_height; ++i) {
-		out_movecursor(width, i);
-		out_cwrite(g_rpanel[i]->str, g_rpanel[i]->len, text_bg);
-	}
+  for (i = 0; i < height && i < rpanel_max_height; ++i) {
+    out_movecursor(width, i);
+    out_cwrite(g_rpanel[i]->str, g_rpanel[i]->len, text_bg);
+  }
 }
 
 static void   redraw(int w,int clear,int all) {

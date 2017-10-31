@@ -27,6 +27,13 @@ sub report($)
 	MUD::sendr("$TELNET_IAC$TELNET_SB$MSDP_OPT$MSDP_VAR" . "REPORT$MSDP_VAL$var$TELNET_IAC$TELNET_SE");
 }
 
+sub send_var($)
+{
+	local $var = shift;
+	CL::msg("Sending MSDP request to report variable $var");
+	MUD::sendr("$TELNET_IAC$TELNET_SB$MSDP_OPT$MSDP_VAR" . "SEND$MSDP_VAL$var$TELNET_IAC$TELNET_SE");
+}
+
 sub MSDP_Init
 {
 	CL::msg("Initializing MSDP.");
@@ -38,6 +45,14 @@ sub parse_msdp_array($$)
 	my ($data, $offset) = @_;
 
 	++$$offset; # skip MSDP_ARRAY_OPEN
+
+	if ($$offset == length $data)
+	{
+		CL::msg("Unexpected end of MSDP data while array is not read completely.");
+		return undef;
+	}
+
+	++$$offset, return {} if $MSDP_ARRAY_CLOSE eq substr($data, $$offset, 1);	# empty array
 
 	local @result = ();
 	do
@@ -71,6 +86,14 @@ sub parse_msdp_table($$)
 	local %result = ();
 
 	++$$offset; # skip MSDP_TABLE_OPEN
+
+	if ($$offset == length $data)
+	{
+		CL::msg("Unexpected end of MSDP data while table is not read completely.");
+		return undef;
+	}
+
+	++$$offset, return {} if $MSDP_TABLE_CLOSE eq substr($data, $$offset, 1);	# empty table
 
 	do
 	{
@@ -160,7 +183,9 @@ sub MSDP_Data($)
 
 	local $offset = 1;
 	my $result = parse_msdp_var($data, \$offset);
-	CL::msg("MSDP data malformed at offset $offset. Result: " . Dumper(\%result)), return undef if length $data != $offset;
+	my $s = unpack "H*", $data;
+	$s =~ s/(..)/ 0x$1/g;
+	CL::msg("MSDP data malformed at offset $offset. Result: " . Dumper(\%result) . ". Received MSDP buffer:$s"), return undef if length $data != $offset;
 
 	for (keys %handlers)
 	{

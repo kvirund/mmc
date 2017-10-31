@@ -405,6 +405,20 @@ twcrpanel(x,y,string)
 	sbuf = SvPV(string,len);
 	window_output_crpanel(x,y,sbuf,len>>1);
 
+int
+twcrpanel_get_width()
+    CODE:
+    RETVAL = window_get_rpanel_width();
+	OUTPUT:
+	RETVAL
+
+int
+twcrpanel_get_height()
+    CODE:
+    RETVAL = window_get_rpanel_height();
+	OUTPUT:
+	RETVAL
+
 void
 twcrpanel_set_width(new_width)
     int new_width

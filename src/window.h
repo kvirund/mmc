@@ -24,6 +24,8 @@ void	window_output_cstatus(int x,int y,const char *ctext,int len);
 void	window_output_status(int x,int y,const char *text,int len,int color);
 
 void	window_output_crpanel(int x, int y, const char *ctext, int len);
+int	window_get_rpanel_height();
+int	window_get_rpanel_width();
 void	window_set_rpanel_width(int rpw);
 
 void	window_output_cinput(int x,const char *ctext,int len);
@@ -59,6 +61,8 @@ enum {
 enum {
   WMSG_ACT
 };
+
+extern int rpanel_width;
 
 #ifdef __cplusplus
 }

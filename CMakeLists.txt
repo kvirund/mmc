@@ -56,6 +56,27 @@ include_directories(${PROJECT_SOURCE_DIR}/src)	# Because CL.c will contain refer
 
 add_custom_command(OUTPUT xsinit.c COMMAND ${PERL_EXECUTABLE} -MExtUtils::Embed -e xsinit -- -o xsinit.c CL DynaLoader)
 
+set(PERL_MODULES_SOURCES
+	src/CL.pm
+	src/CMD.pm
+	src/Conf.pm
+	src/Config.pm
+	src/DCommand.pm
+	src/DLWin32.pm
+	src/Ex.pm
+	src/fields_without_hash_util.pm
+	src/Keymap.pm
+	src/LE.pm
+	src/Main.pm
+	src/Mapper.pm
+	src/MSDP.pm
+	src/MUD.pm
+	src/Parser.pm
+	src/RStream.pm
+	src/Status.pm
+	src/Ticker.pm
+	src/UAPI.pm)
+
 add_custom_command(OUTPUT perlmodules.c
 	MAIN_DEPENDENCY ${PROJECT_SOURCE_DIR}/src/Main.pm
 	DEPENDS ${PROJECT_SOURCE_DIR}/src/Config.pm ${PROJECT_SOURCE_DIR}/src/DLWin32.pm ${PROJECT_SOURCE_DIR}/src/DCommand.pm
@@ -63,19 +84,20 @@ add_custom_command(OUTPUT perlmodules.c
 		${PROJECT_SOURCE_DIR}/src/Mapper.pm ${PROJECT_SOURCE_DIR}/src/Parser.pm ${PROJECT_SOURCE_DIR}/src/Status.pm
 		${PROJECT_SOURCE_DIR}/src/UAPI.pm ${PROJECT_SOURCE_DIR}/src/RStream.pm ${PROJECT_SOURCE_DIR}/src/CL.pm
 		${PROJECT_SOURCE_DIR}/src/MUD.pm ${PROJECT_SOURCE_DIR}/src/CMD.pm ${PROJECT_SOURCE_DIR}/src/Conf.pm
-		${PROJECT_SOURCE_DIR}/src/Ticker.pm
+		${PROJECT_SOURCE_DIR}/src/Ticker.pm ${PROJECT_SOURCE_DIR}/src/MSDP.pm ${PROJECT_SOURCE_DIR}/src/Mapper.pm
 	COMMAND ${PERL_EXECUTABLE} -I${PROJECT_SOURCE_DIR}/src/ ${PROJECT_SOURCE_DIR}/src/packmod.pl --b2c $<TARGET_FILE:b2c>
 		AutoLoader DynaLoader=${PROJECT_SOURCE_DIR}/src/DLWin32.pm Config=${PROJECT_SOURCE_DIR}/src/Config.pm
-#		fields=${PROJECT_SOURCE_DIR}/src/fields.pm
+#		fields=${PROJECT_SOURCE_DIR}/src/fields_without_hash_util.pm
 		Carp Carp::Heavy warnings::register warnings
 		strict integer vars base locale Exporter Exporter::Heavy Symbol Text::ParseWords Ex CL Conf CMD
-		LE Parser MUD Keymap Main RStream DCommand Ticker Status UAPI bytes
-		Hash/Util Scalar/Util List/Util fields
-		XSLoader > perlmodules.c 
+		LE Parser MUD Keymap Main RStream DCommand Ticker Status UAPI bytes MIME::Base64
+		Hash::Util Scalar::Util List::Util fields MSDP Mapper Data::Dumper constant
+		XSLoader > perlmodules.c
 	COMMENT "Packing perl modules into perlmodules.c")
 
 add_executable(b2c src/b2c.c)
-add_executable(mmc ${SOURCES} ${HEADERS})
+add_executable(mmc ${SOURCES} ${HEADERS} ${PERL_MODULES_SOURCES})
+source_group("Perl modules" FILES ${PERL_MODULES_SOURCES})
 
 set_target_properties(mmc PROPERTIES LINK_FLAGS "/subsystem:windows /opt:ref /opt:icf /DEBUG")
 set_target_properties(mmc PROPERTIES COMPILE_FLAGS "${PERL_CCOPTS} /Od")
@@ -87,5 +109,7 @@ target_link_libraries(mmc ${ZLIB_LIBRARIES} ${PERL_LIBRARY})
 if (WIN32)
 	target_link_libraries(mmc ws2_32.lib winmm.lib version.lib comctl32.lib)
 endif()
+
+install(TARGETS mmc DESTINATION .)
 
 # vim: set ts=4 sw=4 tw=0 noet syntax=cmake :

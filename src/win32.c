@@ -1657,7 +1657,7 @@ void	out_inschars(int n) {
       RemoveSel(curscr);
     /* copy what needs to be saved */
     line=LINE(curscr,curscr->cursory)+curscr->cursorx;
-    l=curscr->width-curscr->cursorx-n;
+    l=curscr->width-curscr->cursorx-n-rpanel_width;
     for (i=l+n-1;i>=n;--i) {
 	if (!CEQ(line+i,line+i-n)) {
 	    line[i]=line[i-n];
@@ -1698,7 +1698,7 @@ void	out_delchars(int n) {
     if (INSELXYL(curscr,curscr->cursorx,curscr->cursory,curscr->width-curscr->cursorx))
       RemoveSel(curscr);
     /* copy what needs to be saved */
-    l=curscr->width-curscr->cursorx-n;
+    l=curscr->width-curscr->cursorx-n - rpanel_width;
     line=LINE(curscr,curscr->cursory)+curscr->cursorx;
     for (i=0;i<l;++i) {
 	if (!CEQ(line+i,line+n+i)) {
@@ -1782,7 +1782,7 @@ void	out_clearline(void) { /* clear to end of line */
     LOCKSCR();
     if (!curscr)
 	goto out;
-    n=curscr->width-curscr->cursorx;
+    n=curscr->width-curscr->cursorx-rpanel_width;
     if (INSELXYL(curscr,curscr->cursorx,curscr->cursory,n))
       RemoveSel(curscr);
     line=LINE(curscr,curscr->cursory)+curscr->cursorx;

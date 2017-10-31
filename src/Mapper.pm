@@ -3,14 +3,16 @@ package PlainFileIO;
 use MIME::Base64;
 use Data::Dumper;
 
+sub Dump
+{
+	my $dump = Dumper(shift);
+	map { CL::msg($_); } split /\n/, $dump;
+}
+
 sub new
 {
 	my $class = shift;
 	my $filename = shift;
-
-	# touch file in case it doesn't exist.
-	open(my $rooms_file, ">>", "$filename.rooms");
-	open(my $zones_file, ">>", "$filename.zones");
 
 	return bless { filename => $filename }, $class;
 }
@@ -21,6 +23,12 @@ sub load($$)
 	my $mapper = shift;
 
 	my $filename = $self->{filename};
+
+	{
+		# touch files in case it doesn't exist.
+		open(local $rooms_file, ">>", "$filename.rooms");
+		open(local $zones_file, ">>", "$filename.zones");
+	}
 
 	my $errors = 0;
 	my $line = 0;
@@ -39,7 +47,7 @@ sub load($$)
 			next;
 		}
 
-		$zones{$1} = (name => decode_base64($2), notes => decode_base64($3));
+		$zones{$1} = {name => decode_base64($2), notes => decode_base64($3)};
 		++$zones_counter;
 	}
 
@@ -61,8 +69,8 @@ sub load($$)
 		$room = {VNUM => $1, ZONE => $2, NAME => decode_base64($4), NOTES => decode_base64($5), TERRAIN => decode_base64($6)};
 		$exits = $3;
 		my %exits = map { split /:/ } split /\//, $exits;
-		$room->{EXITS} = %exits;
-		$room->{AREA} = $zones{$room->{ZONE}};
+		$room->{EXITS} = \%exits;
+		$room->{AREA} = $zones{$room->{ZONE}}->{name};
 		++$rooms_counter;
 
 		$mapper->internal_set_room($room);
@@ -81,7 +89,7 @@ sub save($$)
 	open(my $zones_file, "+>", "$filename.zones") or die "Mapper couldn't open zones data file '$filename.zones'.";
 	for (keys %{$mapper->{zones}})
 	{
-		print $zones_file sprintf("%d;%s;%s\n", $_, encode_base64($mapper->{zones}{$_}, ""), encode_base64($mapper->{zones}{$_}, ""));
+		print $zones_file sprintf("%d;%s;%s\n", $_, encode_base64($mapper->{zones}{$_}{name}, ""), encode_base64($mapper->{zones}{$_}{notes}, ""));
 		++$zones_counter;
 	}
 
@@ -140,8 +148,42 @@ sub internal_set_room($$)
 	my $self = shift;
 	my $value = shift;
 
+	my $old_room = undef;
+	if (defined $self->{rooms}{$value->{VNUM}})
+	{
+		$old_room = $self->{rooms}{$value->{VNUM}};
+	}
+	
 	$self->{rooms}{$value->{VNUM}} = {zone => $value->{ZONE}, name => $value->{NAME}, exits => $value->{EXITS}, notes => "", terrain => $value->{TERRAIN}};
-	$self->{zones}{$value->{ZONE}} = {name => $value->{AREA}, rooms => ()} unless $self->{zones}{$value->{ZONE}};
+	
+	if (defined $old_room)
+	{
+		$self->{rooms}{$value->{VNUM}}->{notes} = $old_room->{notes};
+	}
+
+	if (defined $value->{NOTES})
+	{
+		$self->{rooms}{$value->{VNUM}}->{notes} = $value->{NOTES};
+	}
+
+	my $old_zone = undef;
+	if (defined $self->{zones}{$value->{ZONE}})
+	{
+		$old_zone = $self->{zones}{$value->{ZONE}};
+	}
+
+	$self->{zones}{$value->{ZONE}} = {name => $value->{AREA}, rooms => [], notes => ""} unless $self->{zones}{$value->{ZONE}};
+
+	if (defined $old_zone)
+	{
+		$self->{zones}{$value->{ZONE}}->{notes} = $old_zone->{notes};
+	}
+
+	if (defined $value->{ZONE_NOTES})
+	{
+		$self->{zones}{$value->{ZONE}}->{notes} = $value->{ZONE_NOTES};
+	}
+
 	push @{$self->{zones}{$value->{ZONE}}{rooms}}, $value->{VNUM};
 }
 
@@ -149,9 +191,6 @@ sub set_room($$)
 {
 	my $self = shift;
 	my $value = shift;
-
-	$room_str = sprintf"UID: %02d; Exits: %s; %s", $value->{VNUM}, join(",", map { $_.":".$value->{EXITS}->{$_} } keys %{$value->{EXITS}}), $value->{NAME};
-	CL::msg("Setting room info: $room_str");
 
 	$self->internal_set_room($value);
 }
