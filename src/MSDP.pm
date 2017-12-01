@@ -30,7 +30,7 @@ sub report($)
 sub send_var($)
 {
 	local $var = shift;
-	CL::msg("Sending MSDP request to report variable $var");
+	CL::msg("Sending MSDP request to get variable $var");
 	MUD::sendr("$TELNET_IAC$TELNET_SB$MSDP_OPT$MSDP_VAR" . "SEND$MSDP_VAL$var$TELNET_IAC$TELNET_SE");
 }
 

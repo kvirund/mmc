@@ -1,8 +1,8 @@
 package ::;
 
 BEGIN {
- push(@INC,"lib/perl");
- push(@INC,"lib/mmc");
+ push(@INC,"./lib/perl");
+ push(@INC,"./lib/mmc");
 
  if ($^O eq "MSWin32") {
    %Config::Config=(libpth=>'',ldlibpthname=>undef,path_sep=>'/');

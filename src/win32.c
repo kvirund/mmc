@@ -1,5 +1,7 @@
 #include <windows.h>
 #include <windowsx.h>
+#include <commctrl.h>
+#include <Strsafe.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -1351,7 +1353,7 @@ LRESULT CALLBACK    MainWndProc(HWND hWnd,UINT uMsg,
       LPMINMAXINFO  mi=(LPMINMAXINFO)lParam;
       LOCKSCR();
       if (curscr) {
-	mi->ptMinTrackSize.x=curscr->ch_width*20+XLEFTPAD;
+	mi->ptMinTrackSize.x=curscr->ch_width*(20 + rpanel_width)+XLEFTPAD;
 	mi->ptMinTrackSize.y=curscr->ch_height*4+GetSystemMetrics(SM_CYCAPTION);
       } else {
 	mi->ptMinTrackSize.x=160;
@@ -1436,6 +1438,7 @@ static DWORD WINAPI	MainThread(LPVOID arg) {
       NULL,NULL,g_hInst,0);
   if (!hMainWnd)
       exit(1);
+
   if ((str=regstr("WindowPos"))) {
     memset(&pl,0,sizeof(pl));
     pl.length=sizeof(pl);
